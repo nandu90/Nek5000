@@ -764,13 +764,15 @@ C
      &    write(*,'(13x,a)') 'Solving for Hmholtz scalars'
 
       do ifield = 2,nfield
-         if (idpss(ifield-1).eq.0) then      ! helmholtz
-            intype        = -1
-            if (.not.iftmsh(ifield)) imesh = 1
-            if (     iftmsh(ifield)) imesh = 2
-            call unorm
-            call settolt
-            call cdscal(igeom)
+         if(ifield .ne. 4)then
+            if (idpss(ifield-1).eq.0) then ! helmholtz
+               intype        = -1
+               if (.not.iftmsh(ifield)) imesh = 1
+               if (     iftmsh(ifield)) imesh = 2
+               call unorm
+               call settolt
+               call cdscal(igeom)
+            endif
          endif
       enddo
 
@@ -779,6 +781,25 @@ C
      &   istep,'  Scalars done',time,dnekclock()-ts
 
       return
+      end
+
+      subroutine levelSet(igeom)
+c      
+      include 'SIZE'
+      include 'INPUT'
+      include 'TSTEP'
+      include 'DEALIAS'
+c
+      ifield = 4
+      if (idpss(ifield-1).eq.0) then ! helmholtz
+         intype        = -1
+         if (.not.iftmsh(ifield)) imesh = 1
+         if (     iftmsh(ifield)) imesh = 2
+         call unorm
+         call settolt
+         call cdscal(igeom)
+      endif
+      
       end
 c-----------------------------------------------------------------------
       subroutine heat_cvode (igeom)

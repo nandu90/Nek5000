@@ -292,7 +292,19 @@ c-----------------------------------------------------------------------
      $                        call q_filter(param(103))
 
          enddo
-
+         
+c     Level-Set re-distancing
+         if(nfield .eq. 4)then
+            write(*,*)"Re-distancing"
+            t(:,:,:,:,3) = t(:,:,:,:,2)
+            do iloop = 1,15
+               write(*,*)"Re-distancing step:",iloop
+               do igeom = 1,ngeom
+                  call levelSet(igeom)
+               enddo
+            enddo
+            t(:,:,:,:,2) = t(:,:,:,:,3)
+         endif
       else                ! PN-2/PN-2 formulation
          call setprop
          do igeom=1,ngeom

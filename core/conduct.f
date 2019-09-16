@@ -65,7 +65,9 @@ c        if (ifaxis.and.ifmhd) isd = 2 !This is a problem if T is to be T!
          call bcneusc (ta,-1)
          call add2    (h2,ta,n)
          call bcdirsc (t(1,1,1,1,ifield-1))
+        
          call axhelm  (ta,t(1,1,1,1,ifield-1),h1,h2,imesh,ISD)
+         
          call sub3    (tb,bq(1,1,1,1,ifield-1),ta,n)
          call bcneusc (ta,1)
          call add2    (tb,ta,n)

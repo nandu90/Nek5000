@@ -3285,6 +3285,11 @@ C
      $             , duds(lx1,ly1,lz1)
      $             , dudt(lx1,ly1,lz1)
 
+c     Create dummy array for velocities - necessitated by re-distancing
+      real velx(lx1,ly1,lz1,lelv)
+      real vely(lx1,ly1,lz1,lelv)
+      real velz(lx1,ly1,lz1,lelv)
+      
       nel = nelv
       if (imesh.eq.2) nel = nelt
       nxy1  = lx1*ly1
@@ -3294,6 +3299,14 @@ C
 C
 C     Compute vel.grad(u)
 C
+      if(ifield .eq. 4)then
+         call redistvel(velx,vely,velz,u)
+      else
+         velx = vx
+         vely = vy
+         velz = vz
+      endif
+      
       do ie=1,nel
 C
         if (if3d) then
@@ -3306,15 +3319,15 @@ c
 c
            do i=1,nxyz1
               du(i,ie) = jacmi(i,ie)*(
-     $                     vx(i,1,1,ie)*(
+     $                     velx(i,1,1,ie)*(
      $                          rxm1(i,1,1,ie)*dudr(i,1,1)
      $                        + sxm1(i,1,1,ie)*duds(i,1,1)
      $                        + txm1(i,1,1,ie)*dudt(i,1,1) )
-     $                   + vy(i,1,1,ie)*(
+     $                   + vely(i,1,1,ie)*(
      $                          rym1(i,1,1,ie)*dudr(i,1,1)
      $                        + sym1(i,1,1,ie)*duds(i,1,1)
      $                        + tym1(i,1,1,ie)*dudt(i,1,1) )
-     $                   + vz(i,1,1,ie)*(
+     $                   + velz(i,1,1,ie)*(
      $                          rzm1(i,1,1,ie)*dudr(i,1,1)
      $                        + szm1(i,1,1,ie)*duds(i,1,1)
      $                        + tzm1(i,1,1,ie)*dudt(i,1,1) ) )
@@ -3327,10 +3340,10 @@ c           2D
             call mxm (u(1,1,1,ie),lx1,dytm1,ly1,duds,ly1)
             do i=1,nxyz1
                du(i,ie) = jacmi(i,ie)*(
-     $                      vx(i,1,1,ie)*(
+     $                      velx(i,1,1,ie)*(
      $                           rxm1(i,1,1,ie)*dudr(i,1,1)
      $                         + sxm1(i,1,1,ie)*duds(i,1,1) )
-     $                    + vy(i,1,1,ie)*(
+     $                    + vely(i,1,1,ie)*(
      $                           rym1(i,1,1,ie)*dudr(i,1,1)
      $                         + sym1(i,1,1,ie)*duds(i,1,1) ) )
             enddo
@@ -4782,3 +4795,123 @@ c
       return
       end
 c-----------------------------------------------------------------------
+
+
+      subroutine redistvel(velx,vely,velz,u)
+c
+      include 'SIZE'
+      include 'DXYZ'
+      include 'INPUT'
+      include 'GEOM'
+      include 'SOLN'
+      include 'TSTEP'
+      include 'MASS'
+      include 'WZ'
+c
+      COMMON /FASTMD/ IFDFRM(LELT)
+      LOGICAL IFDFRM
+c
+      real velx (lx1,ly1,lz1,lelv)
+      real vely (lx1,ly1,lz1,lelv)
+      real velz (lx1,ly1,lz1,lelv)
+      real u (lx1,ly1,lz1,lelv)
+c
+      real dudr(lx1,ly1,lz1)
+     $     , duds(lx1,ly1,lz1)
+     $     , dudt(lx1,ly1,lz1)
+
+      real tmp1(lx1,ly1,lz1)
+      real tmp2(lx1,ly1,lz1)
+      real tmp3(lx1,ly1,lz1)
+      real mag
+      real signls
+c
+      eps = 1.0
+      
+      nel = nelv
+      nxy1  = lx1*ly1
+      nyz1  = ly1*lz1
+      nxyz1 = lx1*ly1*lz1
+      ntot  = nxyz1*nel
+
+      do ie=1,nel
+         if(if3d)then
+            call mxm   (dxm1,lx1,u(1,1,1,ie),lx1,dudr,nyz1)
+            do iz=1,lz1
+               call mxm (u(1,1,iz,ie),lx1,dytm1,ly1,duds(1,1,iz),ly1)
+            enddo
+            call mxm   (u(1,1,1,ie),nxy1,dztm1,lz1,dudt,lz1)
+            call col3    (tmp1,dudr,g1m1(1,1,1,ie),nxyz1)
+            call col3    (tmp2,duds,g2m1(1,1,1,ie),nxyz1)
+            call col3    (tmp3,dudt,g3m1(1,1,1,ie),nxyz1)
+            if (ifdfrm(ie)) then
+               call addcol3 (tmp1,duds,g4m1(1,1,1,ie),nxyz1)
+               call addcol3 (tmp1,dudt,g5m1(1,1,1,ie),nxyz1)
+               call addcol3 (tmp2,dudr,g4m1(1,1,1,ie),nxyz1)
+               call addcol3 (tmp2,dudt,g6m1(1,1,1,ie),nxyz1)
+               call addcol3 (tmp3,dudr,g5m1(1,1,1,ie),nxyz1)
+               call addcol3 (tmp3,duds,g6m1(1,1,1,ie),nxyz1)
+            endif
+
+            do ix = 1,lx1
+               do iy = 1,ly1
+                  do iz = 1,lz1
+                     mag = sqrt(tmp1(ix,iy,iz)**2.
+     &                    +tmp2(ix,iy,iz)**2.
+     &                    +tmp3(ix,iy,iz)**2.)
+                     call levelSet_sign(signls,t(ix,iy,iz,ie,ifield-1))
+                     velx(ix,iy,iz,ie) = signls*tmp1(ix,iy,iz)/mag
+                     vely(ix,iy,iz,ie) = signls*tmp2(ix,iy,iz)/mag
+                     velz(ix,iy,iz,ie) = signls*tmp3(ix,iy,iz)/mag
+                  enddo
+               enddo
+            enddo
+         else
+            call mxm (dxm1,lx1,u(1,1,1,ie),lx1,dudr,nyz1)
+            call mxm (u(1,1,1,ie),lx1,dytm1,ly1,duds,ly1)
+            call col3 (tmp1,dudr,g1m1(1,1,1,ie),nxyz1)
+            call col3 (tmp2,duds,g2m1(1,1,1,ie),nxyz1)
+            if (ifdfrm(e)) then
+               call addcol3 (tmp1,duds,g4m1(1,1,1,ie),nxyz1)
+               call addcol3 (tmp2,dudr,g4m1(1,1,1,ie),nxyz1)
+            endif
+
+            do ix = 1,lx1
+               do iy = 1,ly1
+                  mag = sqrt(tmp1(ix,iy,1)**2.
+     &                 +tmp2(ix,iy,1)**2.)
+                  call levelSet_sign(signls,t(ix,iy,1,ie,ifield-1))
+                  velx(ix,iy,1,ie) = signls*tmp1(ix,iy,1)/mag
+                  vely(ix,iy,1,ie) = signls*tmp2(ix,iy,1)/mag       
+               enddo
+            enddo
+         endif
+      enddo
+
+      return
+      end
+
+
+      subroutine levelSet_sign(s,phi)
+
+      include 'SIZE'
+      include 'INPUT'
+      include 'SOLN'
+      include 'GEOM'
+      include 'TSTEP'
+      
+      real s
+      real phi
+      real eps
+      
+      eps = 1.0
+      
+      if(phi .gt. eps)then
+         s = 1.
+      elseif(abs(phi) .le. eps)then
+         s = phi/eps + sin(PI*phi/eps)/PI
+      else
+         s = -1.
+      endif
+      
+      end
