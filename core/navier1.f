@@ -3300,7 +3300,7 @@ C
 C     Compute vel.grad(u)
 C
       if(ifield .eq. 4)then
-         call redistvel(velx,vely,velz,u)
+         call redistvel2(velx,vely,velz,u)
       else
          velx = vx
          vely = vy
@@ -4796,122 +4796,62 @@ c
       end
 c-----------------------------------------------------------------------
 
-
-      subroutine redistvel(velx,vely,velz,u)
+      subroutine redistvel2(velx,vely,velz,u)
 c
       include 'SIZE'
-      include 'DXYZ'
-      include 'INPUT'
-      include 'GEOM'
       include 'SOLN'
       include 'TSTEP'
-      include 'MASS'
-      include 'WZ'
-c
-      COMMON /FASTMD/ IFDFRM(LELT)
-      LOGICAL IFDFRM
 c
       real velx (lx1,ly1,lz1,lelv)
       real vely (lx1,ly1,lz1,lelv)
       real velz (lx1,ly1,lz1,lelv)
       real u (lx1,ly1,lz1,lelv)
 c
-      real dudr(lx1,ly1,lz1)
-     $     , duds(lx1,ly1,lz1)
-     $     , dudt(lx1,ly1,lz1)
-
-      real tmp1(lx1,ly1,lz1)
-      real tmp2(lx1,ly1,lz1)
-      real tmp3(lx1,ly1,lz1)
-      real mag
-      real signls
-c
-      eps = 1.0
+      real mag(lx1,ly1,lz1,lelv)
+      real signls(lx1,ly1,lz1,lelv)
       
       nel = nelv
-      nxy1  = lx1*ly1
-      nyz1  = ly1*lz1
-      nxyz1 = lx1*ly1*lz1
-      ntot  = nxyz1*nel
+      nxyz = lx1*ly1*lz1
+      ntot = nxyz*nel
+      
+      call gradm1(velx,vely,velz,u)
 
-      do ie=1,nel
-         if(if3d)then
-            call mxm   (dxm1,lx1,u(1,1,1,ie),lx1,dudr,nyz1)
-            do iz=1,lz1
-               call mxm (u(1,1,iz,ie),lx1,dytm1,ly1,duds(1,1,iz),ly1)
-            enddo
-            call mxm   (u(1,1,1,ie),nxy1,dztm1,lz1,dudt,lz1)
-            call col3    (tmp1,dudr,g1m1(1,1,1,ie),nxyz1)
-            call col3    (tmp2,duds,g2m1(1,1,1,ie),nxyz1)
-            call col3    (tmp3,dudt,g3m1(1,1,1,ie),nxyz1)
-            if (ifdfrm(ie)) then
-               call addcol3 (tmp1,duds,g4m1(1,1,1,ie),nxyz1)
-               call addcol3 (tmp1,dudt,g5m1(1,1,1,ie),nxyz1)
-               call addcol3 (tmp2,dudr,g4m1(1,1,1,ie),nxyz1)
-               call addcol3 (tmp2,dudt,g6m1(1,1,1,ie),nxyz1)
-               call addcol3 (tmp3,dudr,g5m1(1,1,1,ie),nxyz1)
-               call addcol3 (tmp3,duds,g6m1(1,1,1,ie),nxyz1)
-            endif
+      call vmag(velx,vely,velz,mag,ntot)
 
-            do ix = 1,lx1
-               do iy = 1,ly1
-                  do iz = 1,lz1
-                     mag = sqrt(tmp1(ix,iy,iz)**2.
-     &                    +tmp2(ix,iy,iz)**2.
-     &                    +tmp3(ix,iy,iz)**2.)
-                     call levelSet_sign(signls,t(ix,iy,iz,ie,ifield-1))
-                     velx(ix,iy,iz,ie) = signls*tmp1(ix,iy,iz)/mag
-                     vely(ix,iy,iz,ie) = signls*tmp2(ix,iy,iz)/mag
-                     velz(ix,iy,iz,ie) = signls*tmp3(ix,iy,iz)/mag
-                  enddo
-               enddo
-            enddo
+      call invcol2(velx,mag,ntot)
+      call invcol2(vely,mag,ntot)
+      call invcol2(velz,mag,ntot)     
+      
+      call levelSet_sign(signls,t(:,:,:,:,ifield-1),ntot)
+      
+      call col2(velx,signls,ntot)
+      call col2(vely,signls,ntot)
+      call col2(velz,signls,ntot)               
+
+      return
+      end
+c-----------------------------------------------------------------------
+     
+      subroutine levelSet_sign(s,phi,n)
+
+      include 'SIZE'
+      include 'TSTEP'
+      
+      DIMENSION s(1)
+      DIMENSION phi(1)
+      real eps
+      
+      eps = 1.0
+
+      do i =1,n
+         if(phi(i) .gt. eps)then
+            s(i) = 1.
+         elseif(abs(phi(i)) .le. eps)then
+            s(i) = phi(i)/eps + sin(PI*phi(i)/eps)/PI
          else
-            call mxm (dxm1,lx1,u(1,1,1,ie),lx1,dudr,nyz1)
-            call mxm (u(1,1,1,ie),lx1,dytm1,ly1,duds,ly1)
-            call col3 (tmp1,dudr,g1m1(1,1,1,ie),nxyz1)
-            call col3 (tmp2,duds,g2m1(1,1,1,ie),nxyz1)
-            if (ifdfrm(e)) then
-               call addcol3 (tmp1,duds,g4m1(1,1,1,ie),nxyz1)
-               call addcol3 (tmp2,dudr,g4m1(1,1,1,ie),nxyz1)
-            endif
-
-            do ix = 1,lx1
-               do iy = 1,ly1
-                  mag = sqrt(tmp1(ix,iy,1)**2.
-     &                 +tmp2(ix,iy,1)**2.)
-                  call levelSet_sign(signls,t(ix,iy,1,ie,ifield-1))
-                  velx(ix,iy,1,ie) = signls*tmp1(ix,iy,1)/mag
-                  vely(ix,iy,1,ie) = signls*tmp2(ix,iy,1)/mag       
-               enddo
-            enddo
+            s(i) = -1.
          endif
       enddo
 
       return
-      end
-
-
-      subroutine levelSet_sign(s,phi)
-
-      include 'SIZE'
-      include 'INPUT'
-      include 'SOLN'
-      include 'GEOM'
-      include 'TSTEP'
-      
-      real s
-      real phi
-      real eps
-      
-      eps = 1.0
-      
-      if(phi .gt. eps)then
-         s = 1.
-      elseif(abs(phi) .le. eps)then
-         s = phi/eps + sin(PI*phi/eps)/PI
-      else
-         s = -1.
-      endif
-      
       end

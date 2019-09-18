@@ -1749,3 +1749,19 @@ c-----------------------------------------------------------------------
       return
       end
 c-----------------------------------------------------------------------
+      subroutine vmag(vecx,vecy,vecz,vm,n)
+c
+      DIMENSION vecx(1)
+      DIMENSION vecy(1)
+      DIMENSION vecz(1)
+      DIMENSION vm(1)
+
+      do i=1,n
+         vm(i) = vecx(i)**2.+vecy(i)**2.+vecz(i)**2.
+      enddo
+      
+      call vsqrt(vm,n)
+
+      return
+      end
+c-----------------------------------------------------------------------
