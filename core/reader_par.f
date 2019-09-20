@@ -822,7 +822,14 @@ c set restart options
          if(index(initc(i),'0') .eq. 1) call blank(initc(i),132)
       enddo
 
-
+c     Level-Set Relevant options
+      call finiparser_find(i_out,'levelset',ifnd)
+      if(ifnd .eq. 1)then
+         ifls = .true.
+      else
+         ifls = .false.
+      endif
+      
 100   if(ierr.eq.0) call finiparser_dump()
       return
 
@@ -896,6 +903,8 @@ C
       call bcast(initc, 15*132*csize) 
 
       call bcast(timeioe,sizeof(timeioe))
+
+      call bcast(ifls,lsize)
 
 c set some internals 
       if (ldim.eq.3) if3d=.true.
