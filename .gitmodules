@@ -1,3 +1,6 @@
 [submodule "examples"]
 	path = examples
 	url = https://github.com/Nek5000/NekExamples
+[submodule "NekLevelSet"]
+	path = NekLevelSet
+	url = git@github.com:nandu90/NekLevelSet.git
