@@ -4,3 +4,4 @@
 [submodule "NekLevelSet"]
 	path = NekLevelSet
 	url = git@github.com:nandu90/NekLevelSet.git
+	update = merge
