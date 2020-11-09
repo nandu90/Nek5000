@@ -32,3 +32,7 @@
      $             ,ifrans_ktau_lowRe, ifrans_ktauSST_stndrd
      $             ,ifrans_diag
 
+      common /viscmol/mul   (lx1,ly1,lz1,lelv), mul_dx(lx1,ly1,lz1,lelv)
+     $               ,mul_dy(lx1,ly1,lz1,lelv), mul_dz(lx1,ly1,lz1,lelv)
+      real mul, mul_dx, mul_dy, mul_dz
+
