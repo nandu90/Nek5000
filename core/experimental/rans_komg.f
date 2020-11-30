@@ -7,7 +7,7 @@
       data ifldla /ldimt1/ 
 
       if(ix*iy*iz*iel.eq.1 .and. ifield.le.ifldla) then
-         if(nid.eq.0 .and. loglevel.gt.2) write(6,*) 'updating komg_mut'
+         if(nid.eq.0 .and. loglevel.gt.2) write(6,*) 'updating rans_mut'
          if(ifrans_komg_stndrd)      call rans_komg_stndrd_eddy
          if(ifrans_komg_lowRe)       call rans_komg_lowRe_eddy
          if(ifrans_komgSST_stndrd)   call rans_komgSST_stndrd_eddy
@@ -71,7 +71,7 @@ c-----------------------------------------------------------------------
       common /komgifsrc/ ifevalsrc
 
       if(ix*iy*iz*iel.eq.1 .and. ifevalsrc) then
-         if(nid.eq.0 .and. loglevel.gt.2) write(6,*) 'updating komg_src'
+         if(nid.eq.0 .and. loglevel.gt.2) write(6,*) 'updating rans_src'
          if(ifrans_komg_stndrd)      call rans_komg_stndrd_compute
          if(ifrans_komg_lowRe)       call rans_komg_lowRe_compute
          if(ifrans_komgSST_stndrd)   call rans_komgSST_stndrd_compute
@@ -98,7 +98,7 @@ c-----------------------------------------------------------------------
       common /komgifsrc/ ifevalsrc
 
       if(ix*iy*iz*iel.eq.1 .and. ifevalsrc) then
-         if(nid.eq.0 .and. loglevel.gt.2) write(6,*) 'updating komg_src'
+         if(nid.eq.0 .and. loglevel.gt.2) write(6,*) 'updating rans_src'
          if(ifrans_komg_stndrd)      call rans_komg_stndrd_compute
          if(ifrans_komg_lowRe)       call rans_komg_lowRe_compute
          if(ifrans_komgSST_stndrd)   call rans_komgSST_stndrd_compute
@@ -125,7 +125,7 @@ c-----------------------------------------------------------------------
       common /komgifsrc/ ifevalsrc
 
       if(ix*iy*iz*iel.eq.1 .and. ifevalsrc) then
-         if(nid.eq.0 .and. loglevel.gt.2) write(6,*) 'updating komg_src'
+         if(nid.eq.0 .and. loglevel.gt.2) write(6,*) 'updating rans_src'
          if(ifrans_komg_stndrd)      call rans_komg_stndrd_compute
          if(ifrans_komg_lowRe)       call rans_komg_lowRe_compute
          if(ifrans_komgSST_stndrd)   call rans_komgSST_stndrd_compute
@@ -152,7 +152,7 @@ c-----------------------------------------------------------------------
       common /komgifsrc/ ifevalsrc
 
       if(ix*iy*iz*iel.eq.1 .and. ifevalsrc) then
-         if(nid.eq.0 .and. loglevel.gt.2) write(6,*) 'updating komg_src'
+         if(nid.eq.0 .and. loglevel.gt.2) write(6,*) 'updating rans_src'
          if(ifrans_komg_stndrd)      call rans_komg_stndrd_compute
          if(ifrans_komg_lowRe)       call rans_komg_lowRe_compute
          if(ifrans_komgSST_stndrd)   call rans_komgSST_stndrd_compute
@@ -468,17 +468,6 @@ c add rho v * del_omw
 
       enddo
 
-      if (ifrans_diag) then ! divided all at here
-        do e=1,nelv
-        do i=1,lxyz
-          kDiag  (i,1,1,e) = kDiag(i,1,1,e)
-c     $                     / max(t(i,1,1,e,ifld_k-1),    tiny)
-          omgDiag(i,1,1,e) = omgDiag(i,1,1,e)
-c     $                     / max(t(i,1,1,e,ifld_omega-1),tiny)
-        enddo
-        enddo
-      endif
-
       return
       end
 c-----------------------------------------------------------------------
@@ -788,17 +777,6 @@ c add rho v * del_omw
 
       enddo
 
-      if (ifrans_diag) then ! divided all at here
-        do e=1,nelv
-        do i=1,lxyz
-          kDiag  (i,1,1,e) = kDiag(i,1,1,e)
-c     $                     / max(t(i,1,1,e,ifld_k-1),    tiny)
-          omgDiag(i,1,1,e) = omgDiag(i,1,1,e)
-c     $                     / max(t(i,1,1,e,ifld_omega-1),tiny)
-        enddo
-        enddo
-      endif
-
       return
       end
 c-----------------------------------------------------------------------
@@ -869,8 +847,6 @@ c additional SST and k and epsilon constants
         sigom2       = coeffs(20)
         gamma2       = coeffs(21)
 
-
-
 c constants related to limiting source terms or mu_t
         Hlen         = coeffs(24)
         ywlim        = coeffs(25)
@@ -904,7 +880,7 @@ c        call check_omwall_behavior
 c ---------------------
         do i=1,lxyz
 
-          rho = param(1) ! vtrans(i,1,1,e,1)
+          rho = vtrans(i,1,1,e,1)
           mu  = param(2) ! vdiff (i,1,1,e,1)
           nu  = mu/rho
 
@@ -1097,17 +1073,6 @@ c add rho v * del_omw
         call add2   (omgSrc(1,1,1,e), extra_src_omega           ,lxyz)
 
       enddo
-
-      if (ifrans_diag) then ! divided all at here
-        do e=1,nelv
-        do i=1,lxyz
-          kDiag  (i,1,1,e) = kDiag(i,1,1,e)
-c     $                     / max(t(i,1,1,e,ifld_k-1),    tiny)
-          omgDiag(i,1,1,e) = omgDiag(i,1,1,e)
-c     $                     / max(t(i,1,1,e,ifld_omega-1),tiny)
-        enddo
-        enddo
-      endif
 
       return
       end
@@ -1335,17 +1300,6 @@ c Compute extra source term of omega
 
       enddo
 
-      if (ifrans_diag) then ! divided all at here
-        do e=1,nelv
-        do i=1,lxyz
-          kDiag  (i,1,1,e) = kDiag(i,1,1,e)
-c     $                     / max(t(i,1,1,e,ifld_k-1),    tiny)
-          omgDiag(i,1,1,e) = omgDiag(i,1,1,e)
-c     $                     / max(t(i,1,1,e,ifld_omega-1),tiny)
-        enddo
-        enddo
-      endif
-
       return
       end
 c-----------------------------------------------------------------------
@@ -1447,9 +1401,6 @@ c        call copy   (g,   Om_mag2(1,e),       lxyz)
         call gradm11(tau_x,tau_y,tau_z,t(1,1,1,1,ifld_omega-1),e)
         call gradm11(tsq_x,tsq_y,tsq_z,tausq                  ,e)
 
-c ---------------------
-c        call check_omwall_behavior
-c ---------------------
         do i=1,lxyz
 
           rho = vtrans(i,1,1,e,1)
@@ -1522,24 +1473,24 @@ c          mu_t = max(mu_t, mu_min)
 
 c Compute Y_k = dissipation of k
 
-          Y_k = 0.
-c          if(tau.gt.tiny) Y_k = rho * betai_str * f_beta_str / tau
-          if(tau.gt.0) Y_k = rho * betai_str * f_beta_str / tau
+          Y_k = rho * betai_str * f_beta_str / (tau+tiny) !be consistent with k-omg
+c         Y_k = 0.
+c         if(tau.gt.0) Y_k = rho * betai_str * f_beta_str / tau
 
 c Compute G_k = production of  k and limit it to 10*Y_k (the dissipation of k)
 
           extra_prod = twothird*div(i)
           twoSijSij_bar = g(i) - div(i)*extra_prod
 
-          G_k0= mu_t0*g(i) - ( rho + mu_t0*div(i) )*extra_prod
-c          G_k = G_k0 ! min(G_k0, 10.*Y_k*k)
-          G_k = mu_t *g(i)
+c         G_k0= mu_t0*g(i) - ( rho + mu_t0*div(i) )*extra_prod
+c         G_k = G_k0 ! min(G_k0, 10.*Y_k*k)
+          G_k = mu_t *g(i) - ( rho + mu_t*div(i) )*extra_prod
 
 c Compute Source term for k
 
           if (ifrans_diag) then
             kSrc  (i,1,1,e) = G_k
-            kDiag (i,1,1,e) = Y_k !- G_k
+            kDiag (i,1,1,e) = Y_k
           else
             kSrc  (i,1,1,e) =(G_k - Y_k)* k
             kDiag (i,1,1,e) = 0.0
@@ -1606,19 +1557,6 @@ c              omgDiag(i,1,1,e)= G_wp + S_taup - S_w0 + S_tau/tau !+ Y_w/tau
         enddo
 
       enddo
-
-      if (ifrans_diag) then ! divided all at here
-        do e=1,nelv
-        do i=1,lxyz
-          kDiag  (i,1,1,e) = kDiag(i,1,1,e)
-c     $                     / max(t(i,1,1,e,ifld_k-1),    tiny)
-          omgDiag(i,1,1,e) = omgDiag(i,1,1,e)
-c     $                     / max(t(i,1,1,e,ifld_omega-1),tiny)
-        enddo
-        enddo
-      endif
-
-c      call outpost2(vx,vy,vz,tempR,t,ldimt,'rfc')
 
       return
       end
@@ -1720,9 +1658,6 @@ c        call copy   (g,   Om_mag2(1,e),       lxyz)
         call gradm11(tau_x,tau_y,tau_z,t(1,1,1,1,ifld_omega-1),e)
         call gradm11(tsq_x,tsq_y,tsq_z,tausq                  ,e)
 
-c ---------------------
-c        call check_omwall_behavior
-c ---------------------
         do i=1,lxyz
 
           rho = vtrans(i,1,1,e,1)
@@ -1881,17 +1816,6 @@ c Compute Source term for omega
 
       enddo
 
-      if (ifrans_diag) then ! divided all at here
-        do e=1,nelv
-        do i=1,lxyz
-          kDiag  (i,1,1,e) = kDiag(i,1,1,e)
-c     $                     / max(t(i,1,1,e,ifld_k-1),    tiny)
-          omgDiag(i,1,1,e) = omgDiag(i,1,1,e)
-c     $                     / max(t(i,1,1,e,ifld_omega-1),tiny)
-        enddo
-        enddo
-      endif
-
       return
       end
 c-----------------------------------------------------------------------
@@ -1993,9 +1917,6 @@ c        call copy   (g,   Om_mag2(1,e),       lxyz)
         call gradm11(tau_x,tau_y,tau_z,t(1,1,1,1,ifld_omega-1),e)
         call gradm11(tsq_x,tsq_y,tsq_z,tausq                  ,e)
 
-c ---------------------
-c        call check_omwall_behavior
-c ---------------------
         do i=1,lxyz
 
           rho = param(1) ! vtrans(i,1,1,e,1)
@@ -2144,12 +2065,6 @@ c Compute Source term for omega
           S_tau = 8.0*mu   *xtq * Rfact
           S_taup= 8.0*rho*k*xtq * Rfact*sigom
 
-c          tempR1(i,1,1,e) = Fun1
-c          tempR2(i,1,1,e) = Fun2
-c          tempR3(i,1,1,e) = S_w
-c          tempR4(i,1,1,e) = S_taup
-c          pr    (i,1,1,e) = denom
-
           if(ifrans_diag) then
             if(tau.le.tiny) then
               omgSrc(i,1,1,e) = S_w - Y_w - S_tau
@@ -2171,28 +2086,11 @@ c          pr    (i,1,1,e) = denom
 
       enddo
 
-      if (ifrans_diag) then ! divided all at here
-        do e=1,nelv
-        do i=1,lxyz
-          kDiag  (i,1,1,e) = kDiag(i,1,1,e)
-c     $                     / max(t(i,1,1,e,ifld_k-1),    tiny)
-          omgDiag(i,1,1,e) = omgDiag(i,1,1,e)
-c     $                     / max(t(i,1,1,e,ifld_omega-1),tiny)
-        enddo
-        enddo
-      endif
-
-c      call copy(t(1,1,1,1,2), tempR3,ntot)
-c      call copy(t(1,1,1,1,3), tempR4,ntot)
-c      ifxyo = .true.
-c      call outpost2(tempR1,tempR2,vz,pr,t,ldimt,'rfc')
-c      call exitt
-
       return
       end
 c-----------------------------------------------------------------------
       subroutine rans_init(ifld_k_in,ifld_omega_in,ifcoeffs
-     $                       ,coeffs_in,wall_id,ywd_in,model_id,ifransD)
+     $                       ,coeffs_in,wall_id,ywd_in,model_id)
 c
 c     Initialize values ifld_omega & ifld_k for RANS k-omega turbulence
 c     modeling
@@ -2231,7 +2129,7 @@ c
 
       if(iflomach) then
         if(nid.eq.0) write(6,*)
-     &          "ERROR: K-OMEGA NOT SUPPORTED WITH LOW MACH FORMULATION"
+     &         "ERROR: RANS NOT YET SUPPORTED WITH LOW MACH FORMULATION"
         call exitt
       endif
 
@@ -2251,7 +2149,7 @@ c
       if(model_id .eq.6) ifrans_ktauSST_stndrd       = .TRUE.
 
       ! split diagonal of the production term into implicit, by Sigfried
-      if(ifransD) ifrans_diag=.TRUE.
+      ifrans_diag=.TRUE.
 
       if(nid.eq.0) write(*,'(a,a)')
      &                      '  model: ',mname(model_id+1)
@@ -2295,6 +2193,18 @@ c solve for omega_pert
         if(wall_id.eq.2) call distf(ywd,ifld,bcw,w1,w2,w3,w4,w5)
         call copy(ywd_in,ywd,n)
       endif
+
+c set cbc array for k and omega (need to revise for wall-functions)
+      do 10 ie = 1,nelv
+      do 10 ifc = 1,2*ndim
+        bcw=cbc(ifc,ie,1)
+        cbc(ifc,ie,ifld_k)=bcw
+        cbc(ifc,ie,ifld_omega)=bcw
+        if(bcw.eq.'W  '.or.bcw.eq.'v  ') then
+          cbc(ifc,ie,ifld_k)='t  '
+          cbc(ifc,ie,ifld_omega)='t  '
+        endif
+  10  continue
 
       call rans_komg_omegabase
 
