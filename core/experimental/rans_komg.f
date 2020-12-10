@@ -67,7 +67,6 @@ c-----------------------------------------------------------------------
       include 'RANS_KOMG'
 
       logical ifevalsrc
-      data ifevalsrc /.true./
       common /komgifsrc/ ifevalsrc
 
       if(ix*iy*iz*iel.eq.1 .and. ifevalsrc) then
@@ -94,7 +93,6 @@ c-----------------------------------------------------------------------
       include 'RANS_KOMG'
 
       logical ifevalsrc
-      data ifevalsrc /.true./
       common /komgifsrc/ ifevalsrc
 
       if(ix*iy*iz*iel.eq.1 .and. ifevalsrc) then
@@ -121,7 +119,6 @@ c-----------------------------------------------------------------------
       include 'RANS_KOMG'
 
       logical ifevalsrc
-      data ifevalsrc /.true./
       common /komgifsrc/ ifevalsrc
 
       if(ix*iy*iz*iel.eq.1 .and. ifevalsrc) then
@@ -148,7 +145,6 @@ c-----------------------------------------------------------------------
       include 'RANS_KOMG'
 
       logical ifevalsrc
-      data ifevalsrc /.true./
       common /komgifsrc/ ifevalsrc
 
       if(ix*iy*iz*iel.eq.1 .and. ifevalsrc) then
@@ -2322,6 +2318,9 @@ c
       real coeffs_in(1),ywd_in(1)
       logical ifcoeffs,ifransD
 
+      logical ifevalsrc
+      common /komgifsrc/ ifevalsrc
+
       character*3 bcw
       character*36 mname(7)
 
@@ -2334,6 +2333,7 @@ c
      &,'low-Re   k-tau                      '
      &,'standard k-tau SST                  '/
 
+      ifevalsrc=.true.
       n=nx1*ny1*nz1*nelv
 
       if(nid.eq.0) write(6,*) 'init RANS model'
