@@ -31,7 +31,7 @@ c-----------------------------------------------------------------------
       if (ierr .ne. 0 ) call exitti('MPI_Win_allocate failed!$',0)
 #endif
 
-      dProcmapCache = .true.
+      dProcmapCache = .false.
 
       return
       end
@@ -167,6 +167,8 @@ c-----------------------------------------------------------------------
 
       integer ibuf(2)
 
+      if (ieg.eq.0) iegl = 0
+
       if (ieg.eq.iegl) then
          ibuf(2) = nidl
          goto 100
@@ -188,6 +190,8 @@ c-----------------------------------------------------------------------
       data    iegl, iell /0,0/
 
       integer ibuf(2)
+
+      if (ieg.eq.0) iegl = 0
 
       if (ieg.eq.iegl) then
          ibuf(1) = iell
