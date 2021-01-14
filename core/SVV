@@ -1,0 +1,9 @@
+c
+c     SVV Arrays
+c
+      real svvf(lx1,ly1,lz1,lelt)
+      real svvmu(lx1,ly1,lz1,lelt)
+      real cdxm1(lx1,lx1), cdxtm1(lx1,lx1)
+      real odxm1(lx1,lx1), odxtm1(lx1,lx1)
+      common /svv/ svvf,svvmu,cdxm1,cdxtm1,odxm1,odxtm1
+      
