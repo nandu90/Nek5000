@@ -203,7 +203,7 @@ c
      &,'low-Re   k-tau                      '
      &,'standard k-tau SST                  '/
 
-      n=nx1*ny1*nz1*nelv
+      n=lx1*ly1*lz1*nelv
 
       if(nid.eq.0) write(6,*) 'initialize RANS model'
 
@@ -290,6 +290,7 @@ c set cbc array for k and omega (need to revise for wall-functions)
   10  continue
 
       call rans_komg_omegabase
+      call cfill(mul,cpfld(1,1),n)
 
       if(nid.eq.0) write(6,*) 'done :: init RANS'
 
