@@ -136,16 +136,13 @@ c     implicit none
       svvcut = (lx1-1)/2.0
       iburgers = 1
       ifnlsvv = .true.
-      cbase = 0.25
-      cnl = 20.0
-      knot = 1.5
       
       call copy(vx,t(1,1,1,1,1),ntot)
       call rzero(vy,ntot)
       call rzero(vz,ntot)
       
-      smax = glamax(t(1,1,1,1,2),ntot)
-      smin = glamin(t(1,1,1,1,2),ntot)
+      smax = glamax(t(1,1,1,1,1),ntot)
+      smin = glamin(t(1,1,1,1,1),ntot)
 
       if(nid .eq. 0)then
          write(*,*)"Scalar max:",smax

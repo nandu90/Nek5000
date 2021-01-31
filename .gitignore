@@ -19,3 +19,9 @@ bin/pretex
 bin/prex
 bin/re2torea
 bin/reatore2
+
+#Case files
+*~*
+*.f0*
+*.nek5000
+
