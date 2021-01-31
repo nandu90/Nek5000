@@ -4,7 +4,7 @@ c---------------------------------------------------------------------
       integer iburgers
 
       real munot,svvcut
-      real cbase,cnl,knot
+      !real cbase,cnl,knot
       end module
 c---------------------------------------------------------------------
       subroutine modifyDer(flag)
@@ -124,8 +124,12 @@ c
       real grady(lx1,ly1,lz1,lelt)
       real gradz(lx1,ly1,lz1,lelt)
 
-      real switch(nelv)
+      real switch(lelt),rphi(lelt)
+      real cbase,cnl,rphimax
 c
+c     Fixed non-linear SVV parameters
+      cbase =0.25
+            
       nxyz = lx1*ly1*lz1
       ntot = nxyz*nelv
 
@@ -144,20 +148,23 @@ c
       
       call col2(cdi,bm1,ntot)
 
-      call cmult(cdi,cnl/glamax(cdi,ntot),ntot)
+      call cmult(cdi,1.0/glamax(cdi,ntot),ntot)
 
-      call get_visc_switch(phi,switch)
-
+      call get_visc_switch(phi,switch,rphi)
+      
+      rphimax = glamax(rphi,nelv)
+      
       do ie=1,nelv
-         do i=1,nxyz
-            csf(i,1,1,ie) = switch(ie)*max(cbase,cdi(i,1,1,ie))
+         cnl = (lx1-1.0)*(rphimax-rphi(ie))
+         do i=1,nxyz            
+            csf(i,1,1,ie) = switch(ie)*max(cbase,cnl*cdi(i,1,1,ie))
          enddo
       enddo
 c     
       return
       end
 c---------------------------------------------------------------------
-      subroutine get_visc_switch(phi,switch)
+      subroutine get_visc_switch(phi,switch,rphi)
 c
       use svvparam
 c      
@@ -166,7 +173,7 @@ c
       include 'SVV'
 c
       real phi(lx1,ly1,lz1,lelt)
-      real switch(nelv)
+      real switch(lelt),rphi(lelt)
       real eratio
 c      
       real phim(lx1,ly1,lz1,lelt)
@@ -186,7 +193,12 @@ c
       integer icalld
       save icalld
       data icalld /0/
+
+      real knot
 c
+c     Fixed non-linear SVV parameter
+      knot = 1.5
+      
       nxyz = lx1*ly1*lz1
       ntot = nxyz*nelv
       
@@ -230,7 +242,7 @@ c
          else
             eratio = vlsum(tmph,nxyz)
          endif
-
+         rphi(ie) = abs(log10(max(eratio,1e-15)))
          switch(ie) = visc_switch(eratio*threshold)
       enddo
       
