@@ -268,7 +268,7 @@ c solve for omega_pert
       else
         bcw    = 'W  '
         ifld   = 1
-        if(nid.eq.0) write(6,*) 'BC for distance , w_id',bcw, wall_id
+        if(nid.eq.0) write(6,*) 'BC for distance , w_id ',bcw, wall_id
         if(wall_id.eq.1) call cheap_dist(ywd,ifld,bcw)
         if(wall_id.eq.2) call distf(ywd,ifld,bcw,w1,w2,w3,w4,w5)
         call copy(ywd_in,ywd,n)
@@ -325,6 +325,8 @@ c
      $                , DivQ   (lx1*ly1*lz1,lelv)
 
       integer e
+
+      real mu_k
 
       real mu_omeg(lxyz), mu_omegx(lxyz), mu_omegy(lxyz), mu_omegz(lxyz)
       real extra_src_omega(lxyz)
@@ -404,7 +406,9 @@ c ---------------------
 
 c limits for k, omega
 
-          omega = t(i,1,1,e,ifld_omega-1) + f_omegb(i,1,1,e) ! Current k & omega values
+          omw = f_omegb(i,1,1,e)
+          omp = t(i,1,1,e,ifld_omega-1)
+          omega = omp + omw ! Current k & omega values
           k     = t(i,1,1,e,ifld_k  -1)   ! from previous timestep
 
           if    (iflim_omeg.eq.1) then
@@ -466,6 +470,7 @@ c no source terms Sk or S_w are added
 c calculate mu_t
 
           mu_t    = rho * alp_str*k/(omega + tiny)
+          mu_k    = rho * alp_str  /(omega + tiny)
 c          if( sqrt(k).ge.(omega*Hlen)) mu_t = rho * sqrt(k) * Hlen
 c          mu_t = max(mu_t, mu_min)
 
@@ -486,32 +491,32 @@ c             mu_t = rho*alp_str*k/Omeg_min
 c          endif
 c          mu_t = max(mu_t, mu_min)
 
-          G_k = mu_t*g(i) - ( rho*k + mu_t*div(i) )*extra_prod
+          G_k = mu_t*g(i)!- ( rho*k + mu_t*div(i) )*extra_prod
+          G_p =             ( rho   + mu_k*div(i) )*extra_prod
 
 c Compute Source term for k
 
           if (ifrans_diag) then
             kSrc  (i,1,1,e) = G_k
-            kDiag (i,1,1,e) = Y_k
+            kDiag (i,1,1,e) = Y_k + G_p
           else
-            kSrc  (i,1,1,e) = G_k - Y_k * k
+            kSrc  (i,1,1,e) = G_k - ( Y_k + G_p ) * k
             kDiag (i,1,1,e) = 0.0
           endif
 
 c Compute production of omega
           alpha = (alp_inf/alp_str)
 
-          G_w = alpha*alp_str*rho*(g(i)-(omega+div(i))*extra_prod)
+c         G_w = alpha*alp_str*rho*(g(i)-(omega+div(i))*extra_prod)
+          G_w = alpha*alp_str*rho*(g(i)-extra_prod*(omw +       div(i)))
+          G_p = alpha*alp_str*rho*(     extra_prod                     )
 
 c Compute dissipation of omega
           beta = beta_0
 
           x_w = abs((sum_xx)/(betainf_str*omega + tiny)**3)
           f_b = 1.0
-          if(if3d) f_b = (1.0 + fb_c1*x_w)/(1.0 + fb_c2*x_w)
-
-          omw = f_omegb(i,1,1,e)
-          omp = t(i,1,1,e,ifld_omega-1)
+c         if(if3d) f_b = (1.0 + fb_c1*x_w)/(1.0 + fb_c2*x_w)
 
           Y_w1= rho*beta*f_b * omw * omw
           Y_w2= rho*beta*f_b *(2.*omw + omp)
@@ -522,10 +527,10 @@ c Compute extra source term of omega
           S_w = rho * sigd * xk / (omega+tiny)
 
           if (ifrans_diag) then
-            omgSrc(i,1,1,e) = G_w - Y_w1+ S_w
-            omgDiag(i,1,1,e)= Y_w2
+            omgSrc(i,1,1,e) = G_w - Y_w1 + S_w
+            omgDiag(i,1,1,e)= Y_w2 + G_p
           else
-            omgSrc(i,1,1,e) = G_w - Y_w + S_w
+            omgSrc(i,1,1,e) = G_w - Y_w + S_w  - G_p*omp
             omgDiag(i,1,1,e)= 0.0
           endif
 
@@ -626,6 +631,8 @@ c
 
       integer e
 
+      real mu_k
+
       real mu_omeg(lxyz), mu_omegx(lxyz), mu_omegy(lxyz), mu_omegz(lxyz)
       real extra_src_omega(lxyz)
 
@@ -704,7 +711,10 @@ c ---------------------
 
 c limits for k, omega
 
-          omega = t(i,1,1,e,ifld_omega-1) + f_omegb(i,1,1,e) ! Current k & omega values
+          omw = f_omegb(i,1,1,e)
+          omp = t(i,1,1,e,ifld_omega-1)
+
+          omega = omp + omw ! Current k & omega values
           k     = t(i,1,1,e,ifld_k  -1)   ! from previous timestep
 
           if    (iflim_omeg.eq.1) then
@@ -772,6 +782,7 @@ c no source terms Sk or S_w are added
 c calculate mu_t
 
           mu_t    = rho * alp_str*k/(omega + tiny)
+          mu_k    = rho * alp_str  /(omega + tiny)
 c          if( sqrt(k).ge.(omega*Hlen)) mu_t = rho * sqrt(k) * Hlen
 c          mu_t = max(mu_t, mu_min)
 
@@ -792,15 +803,16 @@ c             mu_t = rho*alp_str*k/Omeg_min
 c          endif
 c          mu_t = max(mu_t, mu_min)
 
-          G_k = mu_t*g(i) - ( rho*k + mu_t*div(i) )*extra_prod
+          G_k = mu_t*g(i) !- ( rho*k + mu_t*div(i) )*extra_prod
+          G_p = (rho+mu_k*div(i))*extra_prod
 
 c Compute Source term for k
 
           if (ifrans_diag) then
             kSrc  (i,1,1,e) = G_k
-            kDiag (i,1,1,e) = Y_k
+            kDiag (i,1,1,e) = Y_k + G_p
           else
-            kSrc  (i,1,1,e) = G_k - Y_k * k
+            kSrc  (i,1,1,e) = G_k - ( Y_k + G_p ) * k
             kDiag (i,1,1,e) = 0.0
           endif
 
@@ -808,17 +820,16 @@ c Compute production of omega
           alpha = (alp_inf/alp_str) *
      $          ( (alpha_0 + (re_t/r_w))/(1.0 + (re_t/r_w)) )
 
-          G_w = alpha*alp_str*rho*(g(i)-(omega+div(i))*extra_prod)
+c         G_w = alpha*alp_str*rho*(g(i)-(omega+div(i))*extra_prod)
+          G_w = alpha*alp_str*rho*(g(i)-extra_prod*(    omw+div(i)))
+          G_p = alpha*alp_str*rho*(     extra_prod                 )
 
 c Compute dissipation of omega
           beta = beta_0
 
           x_w = abs((sum_xx)/(betainf_str*omega + tiny)**3)
           f_b = 1.0
-          if(if3d) f_b = (1.0 + fb_c1*x_w)/(1.0 + fb_c2*x_w)
-
-          omw = f_omegb(i,1,1,e)
-          omp = t(i,1,1,e,ifld_omega-1)
+c         if(if3d) f_b = (1.0 + fb_c1*x_w)/(1.0 + fb_c2*x_w)
 
           Y_w1= rho*beta*f_b * omw * omw
           Y_w2= rho*beta*f_b *(2.*omw + omp)
@@ -830,9 +841,9 @@ c Compute extra source term of omega
 
           if (ifrans_diag) then
             omgSrc(i,1,1,e) = G_w - Y_w1+ S_w
-            omgDiag(i,1,1,e)= Y_w2
+            omgDiag(i,1,1,e)= Y_w2 + G_p
           else
-            omgSrc(i,1,1,e) = G_w - Y_w + S_w
+            omgSrc(i,1,1,e) = G_w - Y_w + S_w - G_p*omp
             omgDiag(i,1,1,e)= 0.0
           endif
 
@@ -933,6 +944,8 @@ c
 
       integer e
 
+      real mu_k
+
       real mu_omeg(lxyz), mu_omegx(lxyz), mu_omegy(lxyz), mu_omegz(lxyz)
       real extra_src_omega(lxyz)
 
@@ -1005,12 +1018,15 @@ c ---------------------
         do i=1,lxyz
 
           rho = vtrans(i,1,1,e,1)
-          mu  = param(2) ! vdiff (i,1,1,e,1)
+          mu  = mul(i,1,1,e)
           nu  = mu/rho
 
 c limits for k, omega
 
-          omega   = t(i,1,1,e,ifld_omega-1) + f_omegb(i,1,1,e) ! Current k & omega values
+          omw = f_omegb(i,1,1,e)
+          omp = t(i,1,1,e,ifld_omega-1)
+
+          omega   = omp + omw ! Current k & omega values
           k       = t(i,1,1,e,ifld_k  -1)   ! from previous timestep
 
           if    (iflim_omeg.eq.1) then
@@ -1078,9 +1094,11 @@ c calculate F1 based on arg1
 c calculate mu_t
 
           mu_t   = rho * k/(omega + tiny)
+          mu_k   = rho    /(omega + tiny)
           argn   = Fun2*St_magn ! this can also be Om_magn
           if(omega.le.argn/alp1) then
              mu_t   = rho * alp1 * k/argn
+             mu_k   = rho * alp1    /argn
              denom  = argn/ alp1
           else
              denom  = omega
@@ -1096,15 +1114,16 @@ c Compute G_k = production of  k and limit it to 10*Y_k (the dissipation of k)
 
           extra_prod = twothird*div(i)
 
-          G_k = mu_t*g(i) - ( rho*k + mu_t*div(i) )*extra_prod
+          G_k = mu_t*g(i)! - ( rho*k + mu_t*div(i) )*extra_prod
+          G_p =              ( rho   + mu_k*div(i) )*extra_prod
 
 c Compute Source term for k
 
           if (ifrans_diag) then
-            kSrc  (i,1,1,e) = G_k
-            kDiag (i,1,1,e) = Y_k
+            kSrc  (i,1,1,e) = G_k 
+            kDiag (i,1,1,e) = Y_k + G_p
           else
-            kSrc  (i,1,1,e) = G_k - Y_k * k
+            kSrc  (i,1,1,e) = G_k - (G_p + Y_k) * k
             kDiag (i,1,1,e) = 0.0
           endif
 
@@ -1118,9 +1137,6 @@ c Compute production of omega
           G_w = rho * gamma * (g(i)-(div(i)+denom)*extra_prod)
 
 c Compute dissipation of omega
-
-          omw = f_omegb(i,1,1,e)
-          omp = t(i,1,1,e,ifld_omega-1)
 
           Y_w1= rho*beta* omw * omw
           Y_w2= rho*beta*(2.*omw + omp)
@@ -1222,6 +1238,8 @@ c
 
       integer e
 
+      real mu_k
+
         vkappa = 0.41
 
 c Turbulent viscosity constants
@@ -1295,8 +1313,8 @@ c        call check_omwall_behavior
 c ---------------------
         do i=1,lxyz
 
-          rho = param(1) ! vtrans(i,1,1,e,1)
-          mu  = param(2) ! vdiff (i,1,1,e,1)
+          rho = vtrans(i,1,1,e,1)
+          mu  = mul(i,1,1,e) 
           nu  = mu/rho
 
 c limits for k, omega
@@ -1354,6 +1372,7 @@ c no source terms Sk or S_w are added
 c calculate mu_t
 
           mu_t    = rho * alp_str*k/(omega + tiny)
+          mu_k    = rho * alp_str  /(omega + tiny)
 c          if( sqrt(k).ge.(omega*Hlen)) mu_t = rho * sqrt(k) * Hlen
 c          mu_t = max(mu_t, mu_min)
 
@@ -1372,7 +1391,8 @@ c Compute G_k = production of  k and limit it to 10*Y_k (the dissipation of k)
 
           extra_prod = twothird*div(i)
 
-          G_k = mu_t*g(i) - ( rho*k + mu_t*div(i) )*extra_prod
+          G_k = mu_t*g(i)!- ( rho*k + mu_t*div(i) )*extra_prod
+          G_p = (rho + mu_k*div(i))*extra_prod
 
 c Compute Source term for k
 
@@ -1387,14 +1407,16 @@ c Compute Source term for k
 c Compute production of omega
           alpha = (alp_inf/alp_str)
 
-          G_w = alpha*alp_str*rho*(g(i)-(omega+div(i))*extra_prod)
+c         G_w = alpha*alp_str*rho*(g(i)-(omega+div(i))*extra_prod)
+          G_w = alpha*alp_str*rho*(g(i)-(      div(i))*extra_prod)
+          G_p = alpha*alp_str*rho*(                    extra_prod)
 
 c Compute dissipation of omega
           beta = beta_0
 
           x_w = abs((sum_xx)/(betainf_str*omega + tiny)**3)
           f_b = 1.0
-          if(if3d) f_b = (1.0 + fb_c1*x_w)/(1.0 + fb_c2*x_w)
+c         if(if3d) f_b = (1.0 + fb_c1*x_w)/(1.0 + fb_c2*x_w)
 
           Y_w = rho*beta*f_b * omega * omega
           Y_wp= rho*beta*f_b * omega
@@ -1405,9 +1427,9 @@ c Compute extra source term of omega
 
           if (ifrans_diag) then
             omgSrc(i,1,1,e) = G_w + S_w
-            omgDiag(i,1,1,e)= Y_wp
+            omgDiag(i,1,1,e)= Y_wp + G_p
           else
-            omgSrc(i,1,1,e) = G_w - Y_w + S_w
+            omgSrc(i,1,1,e) = G_w - Y_w + S_w - G_p * omega
             omgDiag(i,1,1,e)= 0.0
           endif
 
@@ -1449,7 +1471,7 @@ c      real     tempR(lx1,ly1,lz1,lelv)
 
       integer e
 
-      real mu_t0,mu_t1
+      real mu_k ,mu_tp
 
 c Turbulent viscosity constants
         Pr_t         = coeffs( 1)
@@ -1577,8 +1599,8 @@ c limits for k, tau
 c calculate mu_t
 
           mu_t = rho * alp_str * k * tau    ! eddy viscosity
-          mu_t0= rho * alp_str *     tau    ! eddy viscosity without k
-          mu_t1= rho * alp_str * k          ! eddy viscosity without tau
+          mu_k = rho * alp_str *     tau    ! eddy viscosity without k
+          mu_tp= rho * alp_str * k          ! eddy viscosity without tau
 
           yw   = ywd  (i,1,1,e)
           Rfact= 1.
@@ -1594,15 +1616,16 @@ c Compute G_k = production of k
 
           extra_prod = twothird*div(i)
 
-          G_k= mu_t*g(i) - ( rho*k + mu_t*div(i) )*extra_prod
+          G_k = mu_t*g(i)!- ( rho*k + mu_t*div(i) )*extra_prod
+          G_p = (rho + mu_k*div(i) )*extra_prod
 
 c Compute Source term for k
 
           if (ifrans_diag) then
             kSrc  (i,1,1,e) = G_k
-            kDiag (i,1,1,e) = Y_k
+            kDiag (i,1,1,e) = Y_k + G_p
           else
-            kSrc  (i,1,1,e) = G_k - Y_k * k
+            kSrc  (i,1,1,e) = G_k - ( Y_k + G_p ) * k
             kDiag (i,1,1,e) = 0.0
           endif
 
@@ -1611,8 +1634,7 @@ c Compute production of tau
           alpha = (alp_inf/alp_str)
           gamm  = alpha*alp_str
 
-          G_w = rho     *gamm*(tau*g(i)-(1.+div(i)*tau)*extra_prod)
-     $          *Rfact
+          G_p = rho*gamm*Rfact*(tau*g(i)-(1.+div(i)*tau)*extra_prod)
 
 c Compute dissipation of tau
 
@@ -1625,7 +1647,7 @@ c         if(if3d) f_b = (1.0 + fb_c1*x_w)/(1.0 + fb_c2*x_w)
           Y_w =-rho*beta*f_b * Rfact
 
           S_tau = 8.0*mul(i,1,1,e) *xtq * Rfact
-          S_taup= 8.0*mu_t1        *xtq * Rfact/sigma_omega
+          S_taup= 8.0*mu_tp        *xtq * Rfact/sigma_omega
 
 c Compute extra source term of tau
 
@@ -1636,18 +1658,14 @@ c Compute Source term for tau
 
           if(ifrans_diag) then
             if(tau.le.tiny) then
-c              omgSrc(i,1,1,e) = - Y_w - S_tau
-c              omgDiag(i,1,1,e)= G_w + S_taup - S_wp
               omgSrc(i,1,1,e) = S_w - Y_w - S_tau
-              omgDiag(i,1,1,e)= G_w + S_taup
+              omgDiag(i,1,1,e)= G_p + S_taup
             else
-c              omgSrc(i,1,1,e) = - Y_w
-c              omgDiag(i,1,1,e)= G_w + S_taup - S_wp + S_tau/tau !+ Y_w/tau
               omgSrc(i,1,1,e) = S_w - Y_w
-              omgDiag(i,1,1,e)= G_w + S_taup + S_tau/tau !+ Y_w/tau
+              omgDiag(i,1,1,e)= G_p + S_taup + S_tau/tau
             endif
           else
-            omgSrc(i,1,1,e) = S_w - Y_w - S_tau - (G_w + S_taup) * tau
+            omgSrc(i,1,1,e) = S_w - Y_w - S_tau - (G_p + S_taup) * tau
             omgDiag(i,1,1,e)= 0.0
           endif
 
@@ -1688,7 +1706,7 @@ c
 
       integer e
 
-      real mu_t0,mu_t1
+      real mu_k ,mu_tp
 
 c Turbulent viscosity constants
         Pr_t         = coeffs( 1)
@@ -1825,8 +1843,8 @@ c no source terms Sk or S_w are added
 c calculate mu_t
 
           mu_t = rho * alp_str * k * tau    ! eddy viscosity
-          mu_t0= rho * alp_str *     tau    ! eddy viscosity without k
-          mu_t1= rho * alp_str * k          ! eddy viscosity without tau
+          mu_k = rho * alp_str *     tau    ! eddy viscosity without k
+          mu_tp= rho * alp_str * k          ! eddy viscosity without tau
 c          if( sqrt(k)*tau.ge.Hlen) mu_t = rho * sqrt(k) * Hlen      ! limit mu_t in far field
 c          mu_t = max(mu_t, mu_min)
 
@@ -1847,15 +1865,16 @@ c Compute G_k = production of  k and limit it to 10*Y_k (the dissipation of k)
 c         twoSijSij_bar = g(i) - div(i)*extra_prod
 c         G_k0= mu_t0*g(i) - ( rho + mu_t0*div(i) )*extra_prod
 c         G_k = G_k0 ! min(G_k0, 10.*Y_k*k)
-          G_k = mu_t*g(i) - ( rho*k + mu_t*div(i) )*extra_prod
+          G_k = mu_t*g(i)!- ( rho*k + mu_t*div(i) )*extra_prod
+          G_p =             ( rho   + mu_k*div(i) )*extra_prod
 
 c Compute Source term for k
 
           if (ifrans_diag) then
             kSrc  (i,1,1,e) = G_k
-            kDiag (i,1,1,e) = Y_k
+            kDiag (i,1,1,e) = Y_k + G_p
           else
-            kSrc  (i,1,1,e) = G_k - Y_k * k
+            kSrc  (i,1,1,e) = G_k - ( Y_k + G_p ) * k
             kDiag (i,1,1,e) = 0.0
           endif
 
@@ -1865,15 +1884,14 @@ c Compute production of omega
 
           gamm  = alpha*alp_str
 
-          G_w  = rho     *gamm*(tau*g(i)-(1.+div(i)*tau)*extra_prod)
-     $          *Rfact
+          G_p = rho*gamm*Rfact*(tau*g(i)-(1.+div(i)*tau)*extra_prod)
 
 c Compute dissipation of omega
           beta = beta_0
 
           x_w = abs((sum_xx)*(tau/betainf_str)**3)
           f_b = 1.0
-          if(if3d) f_b = (1.0 + fb_c1*x_w)/(1.0 + fb_c2*x_w)
+c         if(if3d) f_b = (1.0 + fb_c1*x_w)/(1.0 + fb_c2*x_w)
 
           Y_w =-rho*beta*f_b * Rfact
 
@@ -1896,7 +1914,7 @@ c Compute Source term for omega
           if(ifrans_diag) then
             if(tau.le.tiny) then
               omgSrc(i,1,1,e) = S_w - Y_w - S_tau
-              omgDiag(i,1,1,e)= G_w + S_taup
+              omgDiag(i,1,1,e)= G_w + S_taup + G_p
             else
               omgSrc(i,1,1,e) = S_w - Y_w
               omgDiag(i,1,1,e)= G_w + S_taup + S_tau/tau !+ Y_w/tau
@@ -1946,6 +1964,8 @@ c
      $                , DivQ   (lx1*ly1*lz1,lelv)
 
       integer e
+
+      real mu_k, mu_tp
 
 c Turbulent viscosity constants
         Pr_t         = coeffs( 1)
@@ -2017,7 +2037,7 @@ c        call copy   (g,   Om_mag2(1,e),       lxyz)
         do i=1,lxyz
 
           rho = vtrans(i,1,1,e,1)
-          mu  = param(2) ! vdiff (i,1,1,e,1)
+          mu  = mul(i,1,1,e)
           nu  = mu/rho
 
 c limits for k, tau
@@ -2088,10 +2108,15 @@ c calculate F1 based on arg1
 c calculate mu_t
 
           mu_t   = rho * k * tau
+          mu_k   = rho *     tau
           argn   = Fun2*St_magn ! this can also be Om_magn
           if(alp1.le.(argn*tau)) then
              mu_t   = 0.0
-             if(argn.ne.0.) mu_t   = rho * alp1 * k/argn
+             mu_k   = 0.0
+             if(argn.ne.0.) then
+               mu_t   = rho * alp1 * k/argn
+               mu_k   = rho * alp1    /argn
+             endif
              denom  = argn/ alp1
           else
              denom  = 0.
@@ -2115,15 +2140,16 @@ c Compute G_k = production of  k and limit it to 10*Y_k (the dissipation of k)
           extra_prod = twothird*div(i)
 c         twoSijSij_bar = g(i) - div(i)*extra_prod
 
-          G_k = mu_t*g(i) - ( rho*k + mu_t*div(i) )*extra_prod
+          G_k = mu_t*g(i)!- ( rho*k + mu_t*div(i) )*extra_prod
+          G_p =             ( rho   + mu_k*div(i) )*extra_prod
 
 c Compute Source term for k
 
           if (ifrans_diag) then
             kSrc  (i,1,1,e) = G_k
-            kDiag (i,1,1,e) = Y_k
+            kDiag (i,1,1,e) = Y_k + G_p
           else
-            kSrc  (i,1,1,e) = G_k - Y_k * k
+            kSrc  (i,1,1,e) = G_k - ( Y_k + G_p ) * k
             kDiag (i,1,1,e) = 0.0
           endif
 
