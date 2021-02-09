@@ -23,7 +23,7 @@
 
       real f_omegb, dfdx_omegb, dfdy_omegb, dfdz_omegb
       real delfsq_omegb, delsqf_omegb, ywd, ywdm1
-      real k,mu_t,nu_t,mu,nu, kv_min,omeg_max, mu_min
+      real k,mu_t,nu_t,mu,mu_k,mu_tp,nu, kv_min,omeg_max, mu_min
 
       common/ifrans/ifrans_komg_stndrd, ifrans_komg_lowRe
      $             ,ifrans_komgSST_stndrd

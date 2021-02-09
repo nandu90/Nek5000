@@ -326,8 +326,6 @@ c
 
       integer e
 
-      real mu_k
-
       real mu_omeg(lxyz), mu_omegx(lxyz), mu_omegy(lxyz), mu_omegz(lxyz)
       real extra_src_omega(lxyz)
 
@@ -630,8 +628,6 @@ c
      $                , DivQ   (lx1*ly1*lz1,lelv)
 
       integer e
-
-      real mu_k
 
       real mu_omeg(lxyz), mu_omegx(lxyz), mu_omegy(lxyz), mu_omegz(lxyz)
       real extra_src_omega(lxyz)
@@ -944,8 +940,6 @@ c
 
       integer e
 
-      real mu_k
-
       real mu_omeg(lxyz), mu_omegx(lxyz), mu_omegy(lxyz), mu_omegz(lxyz)
       real extra_src_omega(lxyz)
 
@@ -1238,8 +1232,6 @@ c
 
       integer e
 
-      real mu_k
-
         vkappa = 0.41
 
 c Turbulent viscosity constants
@@ -1471,8 +1463,6 @@ c      real     tempR(lx1,ly1,lz1,lelv)
 
       integer e
 
-      real mu_k ,mu_tp
-
 c Turbulent viscosity constants
         Pr_t         = coeffs( 1)
         sigma_k      = coeffs( 2)
@@ -1608,8 +1598,8 @@ c calculate mu_t
 
 c Compute Y_k = dissipation of k
 
-c         Y_kp = 0.
-c         if(tau.gt.0) Y_kp = rho * betai_str * f_beta_str / tau
+c         Y_k = 0.
+c         if(tau.gt.tiny) Y_k = rho * betai_str * f_beta_str / tau
           Y_k = rho * betai_str * f_beta_str / (tau+tiny)
 
 c Compute G_k = production of k 
@@ -1706,8 +1696,6 @@ c
 
       integer e
 
-      real mu_k ,mu_tp
-
 c Turbulent viscosity constants
         Pr_t         = coeffs( 1)
         sigma_k      = coeffs( 2)
@@ -1779,6 +1767,7 @@ c        call copy   (g,   Om_mag2(1,e),       lxyz)
         do i=1,lxyz
 
           rho = vtrans(i,1,1,e,1)
+          mu  = mul(i,1,1,e)
 
 c limits for k, tau
 
@@ -1823,7 +1812,7 @@ c no source terms Sk or S_w are added
             xtq= (tsq_x(i)*tsq_x(i)+tsq_y(i)*tsq_y(i))
           endif
 
-          re_t     = rho * k * tau / mul(i,1,1,e)
+          re_t     = rho * k * tau / mu
 
           alp_str  = alpinf_str  * (alp0_str + (re_t/r_k))
      $                                   / (1.+(re_t/r_k))
@@ -1845,8 +1834,6 @@ c calculate mu_t
           mu_t = rho * alp_str * k * tau    ! eddy viscosity
           mu_k = rho * alp_str *     tau    ! eddy viscosity without k
           mu_tp= rho * alp_str * k          ! eddy viscosity without tau
-c          if( sqrt(k)*tau.ge.Hlen) mu_t = rho * sqrt(k) * Hlen      ! limit mu_t in far field
-c          mu_t = max(mu_t, mu_min)
 
           yw   = ywd  (i,1,1,e)
           Rfact= 1.
@@ -1862,9 +1849,6 @@ c Compute G_k = production of  k and limit it to 10*Y_k (the dissipation of k)
 
           extra_prod = twothird*div(i)
 
-c         twoSijSij_bar = g(i) - div(i)*extra_prod
-c         G_k0= mu_t0*g(i) - ( rho + mu_t0*div(i) )*extra_prod
-c         G_k = G_k0 ! min(G_k0, 10.*Y_k*k)
           G_k = mu_t*g(i)!- ( rho*k + mu_t*div(i) )*extra_prod
           G_p =             ( rho   + mu_k*div(i) )*extra_prod
 
@@ -1893,11 +1877,12 @@ c Compute dissipation of omega
           f_b = 1.0
 c         if(if3d) f_b = (1.0 + fb_c1*x_w)/(1.0 + fb_c2*x_w)
 
-          Y_w =-rho*beta*f_b * Rfact
+          Y_w = rho*beta*f_b * Rfact
 
 c Compute extra source term of omega
 
           S_w =-rho * sigd * xk * tau * Rfact
+          S_wp= rho * sigd * xk *       Rfact
 
 c          Scoef = 0.0
 c          if(tau.ne.0.) Scoef = 2.*(mu+mu_t/sigma_omega)/tau
@@ -1908,19 +1893,19 @@ c          S_tau = Scoef*xtq
 
 c Compute Source term for omega
 
-          S_tau = 8.0*mul(i,1,1,e) *xtq * Rfact
-          S_taup= 8.0*mu_t1        *xtq * Rfact/sigma_omega
+          S_tau = 8.0*mu    *xtq * Rfact
+          S_taup= 8.0*mu_tp *xtq * Rfact/sigma_omega
 
           if(ifrans_diag) then
             if(tau.le.tiny) then
-              omgSrc(i,1,1,e) = S_w - Y_w - S_tau
-              omgDiag(i,1,1,e)= G_w + S_taup + G_p
+              omgSrc(i,1,1,e) = Y_w - S_tau
+              omgDiag(i,1,1,e)= S_wp + G_w + S_taup + G_p
             else
-              omgSrc(i,1,1,e) = S_w - Y_w
-              omgDiag(i,1,1,e)= G_w + S_taup + S_tau/tau !+ Y_w/tau
+              omgSrc(i,1,1,e) = Y_w
+              omgDiag(i,1,1,e)= S_wp + G_w + S_taup + S_tau/tau !+ Y_w/tau
             endif
           else
-            omgSrc(i,1,1,e) = S_w - Y_w - S_tau - (G_w + S_taup) * tau
+            omgSrc(i,1,1,e) = S_w + Y_w - S_tau - (G_w + S_taup) * tau
             omgDiag(i,1,1,e)= 0.0
           endif
 
@@ -1964,8 +1949,6 @@ c
      $                , DivQ   (lx1*ly1*lz1,lelv)
 
       integer e
-
-      real mu_k, mu_tp
 
 c Turbulent viscosity constants
         Pr_t         = coeffs( 1)
@@ -4232,7 +4215,7 @@ c
       nkey_neg   = 0
       xtau_neg   = 0.
       xkey_neg   = 0.
-      frac       = 0.01
+      frac       = 0.
 
 c limits for k, omega
 
