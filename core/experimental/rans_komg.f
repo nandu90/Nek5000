@@ -2913,7 +2913,7 @@ c ---------------------
         do i=1,lxyz
 
           rho = vtrans(i,1,1,e,1)
-          mu  = mul(i,1,1,e,1)
+          mu  = mul(i,1,1,e)
           nu  = mu/rho
 
 c limits for k, omega
@@ -3090,7 +3090,7 @@ c        call copy   (g,   Om_mag2(1,e),       lxyz)
         do i=1,lxyz
 
           rho = vtrans(i,1,1,e,1)
-          mu  = mul(i,1,1,e,1)
+          mu  = mul(i,1,1,e)
           nu  = mu/rho
 
 c limits for k, omega
@@ -3477,7 +3477,7 @@ c ---------------------
         do i=1,lxyz
 
           rho = vtrans(i,1,1,e,1)
-          mu  = mul(i,1,1,e,1)
+          mu  = mul(i,1,1,e)
           nu  = mu/rho
 
 c limits for k, tau
