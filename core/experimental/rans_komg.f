@@ -1512,13 +1512,13 @@ c yplus boundary related to wall functions
 c================================
 
       ntot = nx1*ny1*nz1*nelv
-      call comp_StOm (St_mag2, Om_mag2, OiOjSk, DivQ)
-      call sqrt_tau(tausq,t(1,1,1,1,ifld_omega-1),ntot)
 
       mu_min    = edd_frac_free*param(2)
       iflim_tau = 0 ! limit tau
 
       if(iflim_tau.eq.0) call limit_ktau
+      call comp_StOm (St_mag2, Om_mag2, OiOjSk, DivQ)
+      call sqrt_tau(tausq,t(1,1,1,1,ifld_omega-1),ntot)
       call rzero(div,lxyz)
 
       do e=1,nelv
@@ -1745,13 +1745,13 @@ c yplus boundary related to wall functions
 c================================
 
       ntot = nx1*ny1*nz1*nelv
-      call comp_StOm (St_mag2, Om_mag2, OiOjSk, DivQ)
-      call sqrt_tau(tausq,t(1,1,1,1,ifld_omega-1),ntot)
 
       mu_min    = edd_frac_free*param(2)
       iflim_tau = 0 ! limit tau
 
       if(iflim_tau.eq.0) call limit_ktau
+      call comp_StOm (St_mag2, Om_mag2, OiOjSk, DivQ)
+      call sqrt_tau(tausq,t(1,1,1,1,ifld_omega-1),ntot)
       call rzero(div,lxyz)
 
       do e=1,nelv
@@ -1841,9 +1841,9 @@ c calculate mu_t
 
 c Compute Y_k = dissipation of k
 
-c         Y_k = 0.
-c         if(tau.gt.0) Y_k = rho * betai_str * f_beta_str / tau
-          Y_k = rho * betai_str * f_beta_str /( tau + tiny)
+          Y_k = 0.
+          if(tau.gt.0) Y_k = rho * betai_str * f_beta_str / tau
+c         Y_k = rho * betai_str * f_beta_str /( tau + tiny)
 
 c Compute G_k = production of  k and limit it to 10*Y_k (the dissipation of k)
 
@@ -1899,13 +1899,13 @@ c Compute Source term for omega
           if(ifrans_diag) then
             if(tau.le.tiny) then
               omgSrc(i,1,1,e) = Y_w - S_tau
-              omgDiag(i,1,1,e)= S_wp + G_w + S_taup + G_p
+              omgDiag(i,1,1,e)= G_p + S_taup + S_wp
             else
               omgSrc(i,1,1,e) = Y_w
-              omgDiag(i,1,1,e)= S_wp + G_w + S_taup + S_tau/tau !+ Y_w/tau
+              omgDiag(i,1,1,e)= G_p + S_taup + S_wp + S_tau/tau !+ Y_w/tau
             endif
           else
-            omgSrc(i,1,1,e) = S_w + Y_w - S_tau - (G_w + S_taup) * tau
+            omgSrc(i,1,1,e) = Y_w - S_tau - (G_p + S_taup + S_wp) * tau
             omgDiag(i,1,1,e)= 0.0
           endif
 
@@ -1998,13 +1998,13 @@ c yplus boundary related to wall functions
 c================================
 
       ntot = nx1*ny1*nz1*nelv
-      call comp_StOm (St_mag2, Om_mag2, OiOjSk, DivQ)
-      call sqrt_tau(tausq,t(1,1,1,1,ifld_omega-1),ntot)
 
       mu_min    = edd_frac_free*param(2)
       iflim_tau = 0 ! limit tau
 
       if(iflim_tau.eq.0) call limit_ktau
+      call comp_StOm (St_mag2, Om_mag2, OiOjSk, DivQ)
+      call sqrt_tau(tausq,t(1,1,1,1,ifld_omega-1),ntot)
 
       do e=1,nelv
 
@@ -2648,13 +2648,11 @@ c================================
       iflim_omeg= 0 ! limit omega^{prime} 1 limit omega_total
 
       if(iflim_omeg.eq.0) call limit_komg
-      call rzero(div,lxyz)
 
       do e=1,nelv
 
         call copy   (g,   St_mag2(1,e),       lxyz)
 c        call copy   (g,   Om_mag2(1,e),       lxyz)
-        if(iflomach) call copy(div,DivQ(1,e),lxyz)
 
 c ---------------------
 c        call check_omwall_behavior
@@ -2688,17 +2686,6 @@ c calculate mu_t
 
           mu_t    = rho * alp_str*k/(omega + tiny)
 c          if( sqrt(k).ge.(omega*Hlen)) mu_t = rho * sqrt(k) * Hlen
-c          mu_t = max(mu_t, mu_min)
-
-c         extra_prod = twothird*div(i)
-c         twoSijSij_bar = g(i) - div(i)*extra_prod
-
-c          Omeg_min      = Clim*sqrt(twoSijSij_bar/betainf_str)/alp_str
-c          if(Omeg_min .lt.omega) then
-c             mu_t = rho*alp_str*k/omega
-c          else
-c             mu_t = rho*alp_str*k/Omeg_min
-c          endif
 c          mu_t = max(mu_t, mu_min)
 
           mut  (i,1,1,e)   = mu_t
@@ -2786,13 +2773,11 @@ c================================
       iflim_omeg= 0 ! limit omega^{prime} 1 limit omega_total
 
       if(iflim_omeg.eq.0) call limit_komg
-      call rzero (div,lxyz)
 
       do e=1,nelv
 
         call copy   (g,   St_mag2(1,e),       lxyz)
 c        call copy   (g,   Om_mag2(1,e),       lxyz)
-        if(iflomach) call copy(div,DivQ(1,e),lxyz)
 
 c ---------------------
 c        call check_omwall_behavior
@@ -2828,17 +2813,6 @@ c calculate mu_t
 
           mu_t    = rho * alp_str*k/(omega + tiny)
 c          if( sqrt(k).ge.(omega*Hlen)) mu_t = rho * sqrt(k) * Hlen
-c          mu_t = max(mu_t, mu_min)
-
-c         extra_prod = twothird*div(i)
-c         twoSijSij_bar = g(i) - div(i)*extra_prod
-
-c          Omeg_min      = Clim*sqrt(twoSijSij_bar/betainf_str)/alp_str
-c          if(Omeg_min .lt.omega) then
-c             mu_t = rho*alp_str*k/omega
-c          else
-c             mu_t = rho*alp_str*k/Omeg_min
-c          endif
 c          mu_t = max(mu_t, mu_min)
 
           mut  (i,1,1,e)   = mu_t
@@ -2939,7 +2913,7 @@ c ---------------------
         do i=1,lxyz
 
           rho = vtrans(i,1,1,e,1)
-          mu  = param(2) ! vdiff (i,1,1,e,1)
+          mu  = mul(i,1,1,e,1)
           nu  = mu/rho
 
 c limits for k, omega
@@ -3107,18 +3081,16 @@ c================================
       iflim_omeg= 0 ! limit omega^{prime} 1 limit omega_total
 
       if(iflim_omeg.eq.0) call limit_komg_noreg
-      call rzero(div,lxyz)
 
       do e=1,nelv
 
         call copy   (g,   St_mag2(1,e),       lxyz)
 c        call copy   (g,   Om_mag2(1,e),       lxyz)
-        if(iflomach) call copy(div,DivQ(1,e),lxyz)
 
         do i=1,lxyz
 
           rho = vtrans(i,1,1,e,1)
-          mu  = param(2) ! vdiff (i,1,1,e,1)
+          mu  = mul(i,1,1,e,1)
           nu  = mu/rho
 
 c limits for k, omega
@@ -3240,13 +3212,11 @@ c================================
       iflim_tau = 0 ! limit tau
 
       if(iflim_tau.eq.0) call limit_ktau
-      call rzero(div,lxyz)
 
       do e=1,nelv
 
         call copy   (g,   St_mag2(1,e),       lxyz)
 c        call copy   (g,   Om_mag2(1,e),       lxyz)
-        if(iflomach) call copy(div,DivQ(1,e),lxyz)
 
 c ---------------------
 c        call check_omwall_behavior
@@ -3367,13 +3337,11 @@ c================================
       iflim_tau = 0 ! limit tau
 
       if(iflim_tau.eq.0) call limit_ktau
-      call rzero(div,lxyz)
 
       do e=1,nelv
 
         call copy   (g,   St_mag2(1,e),       lxyz)
 c        call copy   (g,   Om_mag2(1,e),       lxyz)
-        if(iflomach) call copy(div,DivQ(1,e),lxyz)
 
 c ---------------------
 c        call check_omwall_behavior
@@ -3509,7 +3477,7 @@ c ---------------------
         do i=1,lxyz
 
           rho = vtrans(i,1,1,e,1)
-          mu  = param(2) ! vdiff (i,1,1,e,1)
+          mu  = mul(i,1,1,e,1)
           nu  = mu/rho
 
 c limits for k, tau
@@ -4054,29 +4022,29 @@ c-----------------------------------------------------------------------
 c
       real tausq(n), tinput(n)
 
-      ntau_neg = 0
-      xtau_neg = 0.
+c     ntau_neg = 0
+c     xtau_neg = 0.
 
       do i=1,n
 
 c limits for k, tau
          tau     = tinput(i)               ! Current tau    values
 
-         if(tau.lt.0.0) then
-           xtau_neg = min(xtau_neg,tau)
-           ntau_neg = ntau_neg + 1
-           tau      = 0.01*abs(tau)
-         endif
+c        if(tau.lt.0.0) then
+c          xtau_neg = min(xtau_neg,tau)
+c          ntau_neg = ntau_neg + 1
+c          tau      = 0.01*abs(tau)
+c        endif
          tausq(i) = sqrt(tau)
 
       enddo
 
-      ntau_neg =iglsum(ntau_neg,1)
-      xtau_neg = glmin(xtau_neg,1)
+c     ntau_neg =iglsum(ntau_neg,1)
+c     xtau_neg = glmin(xtau_neg,1)
 
-      if(nid.eq.0) then
-        if(ntau_neg.gt.0) write(*,*) 'Neg Tau   ', ntau_neg, xtau_neg
-      endif
+c     if(nid.eq.0) then
+c       if(ntau_neg.gt.0) write(*,*) 'Neg Tau   ', ntau_neg, xtau_neg
+c     endif
 
       return
       end
@@ -4215,7 +4183,7 @@ c
       nkey_neg   = 0
       xtau_neg   = 0.
       xkey_neg   = 0.
-      frac       = 0.
+      frac       = 1.
 
 c limits for k, omega
 
