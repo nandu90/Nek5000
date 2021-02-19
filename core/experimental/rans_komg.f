@@ -50,10 +50,6 @@ c-----------------------------------------------------------------------
 
       real coeffs_in(1)
 
-c      if(ncoeffs_in.lt.ncoeffs) 
-c     $  call exitti('dim of user provided komg coeffs array 
-c     $               should be >=$',ncoeffs)
-
       do i=1,ncoeffs
          coeffs_in(i) = coeffs(i)
       enddo
@@ -228,7 +224,7 @@ c
       if(model_id .eq.5) ifrans_ktau_lowRe           = .TRUE.
       if(model_id .eq.6) ifrans_ktauSST_stndrd       = .TRUE.
 
-      ! split diagonal of the production term into implicit, by Sigfried
+c split diagonal of the source term into implicit, by Sigfried
       ifrans_diag=.TRUE.
 
       if(nid.eq.0) write(*,'(a,a)')
@@ -244,24 +240,23 @@ c
 
 ! specify k-omega model coefficients
 
-c      if(ncoeffs_in.lt.ncoeffs) 
-c     $  call exitti('dim of user provided komg coeffs array 
-c     $               should be >=$',ncoeffs)
 
       if(ifcoeffs) then
-         do i=1,ncoeffs
-            coeffs(i) =coeffs_in(i)
-         enddo
+        if(ncoeffs_in.lt.ncoeffs) call exitti(
+     $   'dim of user provided komg coeffs array should be >=$',ncoeffs)
+        do i=1,ncoeffs
+          coeffs(i) =coeffs_in(i)
+        enddo
       else
-         if(ifrans_komg_stndrd .or. ifrans_komg_lowRe .or.
-     $   ifrans_komg_stndrd_noreg .or. ifrans_ktau_stndrd .or.
-c     $   ifrans_ktau_lowRe) call rans_komg_set_defaultcoeffs
-     $   ifrans_ktau_lowRe) call rans_komg2006_set_defaultcoeffs
-         if(ifrans_komgSST_stndrd .or. ifrans_ktauSST_stndrd)
-     $                            call rans_komgSST_set_defaultcoeffs
+        if(ifrans_komg_stndrd .or. ifrans_komg_lowRe .or.
+     $  ifrans_komg_stndrd_noreg .or. ifrans_ktau_stndrd .or.
+c     $  ifrans_ktau_lowRe) call rans_komg_set_defaultcoeffs
+     $  ifrans_ktau_lowRe) call rans_komg2006_set_defaultcoeffs
+        if(ifrans_komgSST_stndrd .or. ifrans_ktauSST_stndrd)
+     $                               call rans_komgSST_set_defaultcoeffs
       endif
 
-c solve for omega_pert
+c setup wall distance
       if(wall_id.eq.0) then
         if(nid.eq.0) write(6,*) ' user supplied wall distance'
         call copy(ywd,ywd_in,n)
@@ -274,7 +269,7 @@ c solve for omega_pert
         call copy(ywd_in,ywd,n)
       endif
 
-c set cbc array for k and omega (need to revise for wall-functions)
+c set cbc array for k and omega/tau (need to revise for wall-functions)
       do 10 ie = 1,nelv
       do 10 ifc = 1,2*ndim
         bcw=cbc(ifc,ie,1)
@@ -289,6 +284,7 @@ c set cbc array for k and omega (need to revise for wall-functions)
         endif
   10  continue
 
+c solve for omega_wall & setup molecular viscosity
       call rans_komg_omegabase
       call cfill(mul,cpfld(1,1),n)
 
@@ -406,10 +402,6 @@ c       call copy   (g,   Om_mag2(1,e),       lxyz)
           if(if3d)
      $    o_z(i)= omp_z(i)+expn * dfdz_omegb(i,1,1,e) *f_omegb(i,1,1,e)
           omwom(i) =  1.0/(1.0+t(i,1,1,e,ifld_omega-1)/f_omegb(i,1,1,e))
-
-c See equations from eqns_k_omega1.pdf from Eq. (3) onwards
-c Eq.(1) and (2) in eqns_k_omega1.pdf are the governing equations
-c no source terms Sk or S_w are added
 
           St_magn = sqrt(St_mag2(i,e))
           Om_magn = sqrt(Om_mag2(i,e))
@@ -646,9 +638,6 @@ c       call copy   (g,   Om_mag2(1,e),       lxyz)
         call gradm11(k_x,  k_y,  k_z,  t(1,1,1,1,ifld_k    -1),e)
         call gradm11(omp_x,omp_y,omp_z,t(1,1,1,1,ifld_omega-1),e)
 
-c ---------------------
-c        call check_omwall_behavior
-c ---------------------
         do i=1,lxyz
 
           rho   = vtrans(i,1,1,e,1)
