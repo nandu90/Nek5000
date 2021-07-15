@@ -41,7 +41,7 @@ C
       INCLUDE 'PARALLEL'
       INCLUDE 'CTIMER'
 
-      loglevel = 1
+      loglevel = 2
       optlevel = 1
 
       call rzero(param,200)
@@ -680,14 +680,9 @@ c set logical flags
             goto 999
          endif
       else if (index(c_out,'COMPNS') .eq. 1) then
-#ifdef CMTNEK
-         continue
-#else
          write(6,*) 'value: ',trim(c_out)
          write(6,*) 'not supported for problemType:equation!'
-         write(6,*) 'Recompile with CMTNEK ...'
          goto 999
-#endif
       else if (index(c_out,'INCOMPMHD') .eq. 1) then
          write(6,*) 'value: ',trim(c_out)
          write(6,*) 'not yet supported for problemType:equation!'
@@ -1069,7 +1064,7 @@ c
       endif
 
       if (lgmres.lt.5 .and. param(42).eq.0) then
-         if(nid.eq.0) write(6,*)
+         if(nid.eq.0 .and. loglevel .gt. 1) write(6,*)
      $   'WARNING: lgmres might be too low!'
       endif
 
