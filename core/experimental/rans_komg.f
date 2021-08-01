@@ -291,7 +291,7 @@ c set cbc array for k and omega/tau (need to revise for wall-functions)
           cbc(ifc,ie,ifld_k)='I  '
           cbc(ifc,ie,ifld_omega)='I  '
         elseif(bcw.eq.'shl') then
-          cbc(ifc,ie,ifld_k)='t  '
+          cbc(ifc,ie,ifld_k)='f  '
           cbc(ifc,ie,ifld_omega)='t  '
         endif
   10  continue
