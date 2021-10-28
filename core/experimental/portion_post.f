@@ -1455,9 +1455,8 @@ c-----------------------------------------------------------------------
       integer elist(1)
       character*3 name3
 
-
-      itmp=0
       if (ifto) itmp=1
+      if(ldimt.gt.1)itmp=ldimt
       call my_outpost2(elist,v1,v2,v3,vp,vt,itmp,name3)
 
       return
