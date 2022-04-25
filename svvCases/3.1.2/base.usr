@@ -1,0 +1,208 @@
+c-----------------------------------------------------------------------
+c  nek5000 user-file template
+c
+c  user specified routines:
+c     - uservp  : variable properties
+c     - userf   : local acceleration term for fluid
+c     - userq   : local source term for scalars
+c     - userbc  : boundary conditions
+c     - useric  : initial conditions
+c     - userchk : general purpose routine for checking errors etc.
+c     - userqtl : thermal divergence for lowMach number flows 
+c     - usrdat  : modify element vertices 
+c     - usrdat2 : modify mesh coordinates
+c     - usrdat3 : general purpose routine for initialization
+c     
+c-----------------------------------------------------------------------
+      subroutine uservp(ix,iy,iz,eg) ! set variable properties
+
+c      implicit none
+
+      integer ix,iy,iz,eg
+     
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      integer e
+c     e = gllel(eg)
+
+      udiff  = 0.0
+      utrans = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userf(ix,iy,iz,eg) ! set acceleration term
+c
+c     Note: this is an acceleration term, NOT a force!
+c     Thus, ffx will subsequently be multiplied by rho(x,t).
+c
+c      implicit none
+
+      integer ix,iy,iz,eg
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      integer e
+c     e = gllel(eg)
+
+      ffx = 0.0
+      ffy = 0.0
+      ffz = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userq(ix,iy,iz,eg) ! set source term
+
+c      implicit none
+
+      integer ix,iy,iz,eg
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      integer e
+c     e = gllel(eg)
+      
+      qvol   = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userbc(ix,iy,iz,iside,eg) ! set up boundary conditions
+c
+c     NOTE ::: This subroutine MAY NOT be called by every process
+c
+c      implicit none
+
+      integer ix,iy,iz,iside,eg
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+c      if (cbc(iside,gllel(eg),ifield).eq.'v01')
+
+c      ux   = 0.0
+c      uy   = 0.0
+c      uz   = 0.0
+c      temp = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine useric(ix,iy,iz,eg) ! set up initial conditions
+
+c      implicit none
+
+      integer ix,iy,iz,eg
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      integer e
+      
+      e = gllel(eg)
+c      ux   = 1. - (ym1(ix,iy,iz,eg)/2.5)**2.
+      ux = 1.0
+      uy = 0.0
+      uz = 0.0
+
+      if(ifield .eq. 2)then
+C     Initializes Level-set contour field
+         x1 = xm1(ix,iy,iz,e)
+         temp = sin(PI*x1)
+
+         if(x1 .ge. 0.35 .and. x1 .le. 0.55)then
+            temp =1.0
+         elseif(x1 .gt. 0.7 .and. x1 .lt. 0.9)then
+            temp = sqrt(1. - ((x1-0.8)/0.1)**2.)
+         elseif(x1 .ge. 0.08 .and. x1 .le. 0.15)then
+            temp = (1./0.0049)*x1**2. - (0.16/0.0049)*x1 + 0.0064/0.0049
+         elseif(x1 .ge. 0.15 .and. x1 .le. 0.22)then
+            temp = (1./0.0049)*x1**2. - (0.44/0.0049)*x1 + 0.0484/0.0049
+         else
+            temp = 0.
+         endif
+      else
+         temp = 0.0
+      endif
+      
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userchk()
+c
+      include 'SIZE'
+      include 'TOTAL'
+      include 'SVV'
+
+      nxyz = lx1*ly1*lz1
+      ntot = nxyz*nelv
+
+c     SVV Parameters
+      svv_c0 = 0.1
+      svvcut = (lx1-1)/2.0
+      iburgers = 0
+      ifsvv = .true.
+      ifnlsvv = .false.
+      
+      svv_k1 = 20.0
+      svv_k0 = 1.5
+      
+      
+      smax = glamax(t(1,1,1,1,1),ntot)
+      smin = glamin(t(1,1,1,1,1),ntot)
+
+      if(nid .eq. 0)then
+         write(*,*)"Scalar max:",smax
+         write(*,*)"Scalar min:",smin
+      endif
+      
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userqtl ! Set thermal divergence
+
+      call userqtl_scig 
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat()   ! This routine to modify element vertices
+
+c      implicit none
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat2()  ! This routine to modify mesh coordinates
+
+c      implicit none
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat3()
+
+c      implicit none
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      ifflow = .false.
+      ifheat = .true.
+      
+      return
+      end
+c---------------------------------------------------------------------
