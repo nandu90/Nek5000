@@ -1,0 +1,215 @@
+c-----------------------------------------------------------------------
+c  nek5000 user-file template
+c
+c  user specified routines:
+c     - uservp  : variable properties
+c     - userf   : local acceleration term for fluid
+c     - userq   : local source term for scalars
+c     - userbc  : boundary conditions
+c     - useric  : initial conditions
+c     - userchk : general purpose routine for checking errors etc.
+c     - userqtl : thermal divergence for lowMach number flows 
+c     - usrdat  : modify element vertices 
+c     - usrdat2 : modify mesh coordinates
+c     - usrdat3 : general purpose routine for initialization
+c     
+c-----------------------------------------------------------------------
+      subroutine uservp(ix,iy,iz,eg) ! set variable properties
+
+c      implicit none
+
+      integer ix,iy,iz,eg
+     
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      integer e
+c     e = gllel(eg)
+
+      udiff  = 0.0
+      utrans = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userf(ix,iy,iz,eg) ! set acceleration term
+c
+c     Note: this is an acceleration term, NOT a force!
+c     Thus, ffx will subsequently be multiplied by rho(x,t).
+c
+c      implicit none
+
+      integer ix,iy,iz,eg
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      integer e
+c     e = gllel(eg)
+
+      ffx = 0.0
+      ffy = 0.0
+      ffz = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userq(ix,iy,iz,eg) ! set source term
+
+c      implicit none
+
+      integer ix,iy,iz,eg
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      integer e
+c     e = gllel(eg)
+      
+      qvol   = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userbc(ix,iy,iz,iside,eg) ! set up boundary conditions
+c
+c     NOTE ::: This subroutine MAY NOT be called by every process
+c
+c      implicit none
+
+      integer ix,iy,iz,iside,eg
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+c      if (cbc(iside,gllel(eg),ifield).eq.'v01')
+
+c      ux   = 0.0
+c      uy   = 0.0
+c      uz   = 0.0
+c      temp = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine useric(ix,iy,iz,ieg) ! set up initial conditions
+
+c      implicit none
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      real theta1,ucx1,ucy1
+      real xc1,yc1,zc1,rx1,ry1
+      real x1,y1,z1
+      integer ie
+      
+      ie = gllel(ieg)
+
+      PI = 2.0*acos(0.0)
+
+      theta1 = 0.
+      ucx1 = 0.5*cos(theta1)-0.5*sin(theta1)
+      ucy1 = 0.5*sin(theta1)+0.5*cos(theta1)
+      
+      x1 = xm1(ix,iy,iz,ie)
+      y1 = ym1(ix,iy,iz,ie)
+      z1 = zm1(ix,iy,iz,ie)
+      
+      ux   = (PI)*(ucy1-y1)
+      uy   = (PI)*(x1-ucx1)
+      uz   = 0.0
+
+      xc1 = 0.5
+      yc1 = 0.75
+      zc1 = 0.5
+      rx1 = xc1*cos(theta1)-0.5*sin(theta1)
+      ry1 = 0.5*sin(theta1)+yc1*cos(theta1)
+      temp = sqrt((x1-rx1)**2.0+(y1-ry1)**2.0+(z1-zc1)**2.0)-0.15
+      if(ifield .eq. 2)then
+         if(temp.le.0.)then
+            temp = 1.
+         else
+            temp = 0.
+         endif
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userchk()
+
+c      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'SVV'
+     
+      nxyz = lx1*ly1*lz1
+      ntot = nxyz*nelv
+      
+      svvcut = (lx1-1)/2.0
+      iburgers = 0
+      ifnlsvv = .true.
+      ifsvv = .true.
+
+      svv_c0 = 1.0
+      svv_k0 = 1.5
+      svv_k1 = 1.5
+      
+c     Soln Monitor
+      tmin = glmin(t(1,1,1,1,1),ntot)
+      tmax = glmax(t(1,1,1,1,1),ntot)
+      if (nid.eq.0) write(6,1) istep,time,tmin,tmax
+  1   format(i9,1p3e14.6,' tmax')
+
+      if (istep.eq.0) call outpost(vx,vy,vz,pr,t(1,1,1,1,1),'sln')
+      if (istep.eq.nsteps) call outpost(vx,vy,vz,pr,t(1,1,1,1,1),'sln')
+      
+      return
+      end
+c---------------------------------------------------------------------      
+      subroutine userqtl        ! Set thermal divergence
+
+      call userqtl_scig 
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat()   ! This routine to modify element vertices
+
+c      implicit none
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat2()  ! This routine to modify mesh coordinates
+
+c      implicit none
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat3()
+
+c      implicit none
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      ifflow = .false.
+      ifheat = .true.
+
+      return
+      end
+c---------------------------------------------------------------------
