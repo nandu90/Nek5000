@@ -256,7 +256,8 @@ c
       real blinv(lx1,lx1)
       save blinv
 
-      real tmp1(lx1,lx1)
+      real tmp1(lx1*ly1*lz1)
+      real tmp2(lx1*ly1*lz1)
 c
       integer icalld
       save icalld
@@ -271,8 +272,20 @@ c
       endif
 
       do ie=1,nelv
-         call mxm(blinv,lx1,phi(1,1,1,ie),lx1,tmp1,lx1)
-         call mxm(tmp1,lx1,bltinv,lx1,phim(1,1,1,ie),lx1)
+         if(.not.if3d)then
+            call mxm(blinv,lx1,phi(1,1,1,ie),lx1,tmp1,lx1)
+            call mxm(tmp1,lx1,bltinv,lx1,phim(1,1,1,ie),lx1)
+         else
+            call mxm(blinv,lx1,phi(1,1,1,ie),lx1,tmp1,lx1*lx1)
+            ix = 1
+            iy = 1
+            do iz=1,lz1
+               call mxm(tmp1(ix),lx1,bltinv,lx1,tmp2(iy),lx1)
+               ix = ix+lx1*lx1
+               iy = iy+lx1*lx1
+            enddo
+            call mxm(tmp2,lx1*lx1,bltinv,lx1,phim(1,1,1,ie),lx1)
+         endif
       enddo
 
       do i=1,ntot
