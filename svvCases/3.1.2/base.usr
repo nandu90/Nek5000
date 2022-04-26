@@ -149,12 +149,11 @@ c     SVV Parameters
       svvcut = (lx1-1)/2.0
       iburgers = 0
       ifsvv = .true.
-      ifnlsvv = .false.
+      ifnlsvv = .true.
       
-      svv_k1 = 20.0
+      svv_k1 = 1.5
       svv_k0 = 1.5
-      
-      
+     
       smax = glamax(t(1,1,1,1,1),ntot)
       smin = glamin(t(1,1,1,1,1),ntot)
 

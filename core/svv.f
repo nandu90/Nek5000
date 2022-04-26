@@ -20,23 +20,23 @@ c
          call copy(dxm1,cdxm1,lx1*lx1)
          call copy(dxtm1,cdxtm1,lx1*lx1)
 
-         call copy(dym1,cdxm1,lx1*lx1)
-         call copy(dytm1,cdxtm1,lx1*lx1)
+         call copy(dym1,cdym1,lx1*lx1)
+         call copy(dytm1,cdytm1,lx1*lx1)
 
          if(if3d)then
-            call copy(dzm1,cdxm1,lx1*lx1)
-            call copy(dztm1,cdxtm1,lx1*lx1)
+            call copy(dzm1,cdzm1,lx1*lx1)
+            call copy(dztm1,cdztm1,lx1*lx1)
          endif
       elseif(flag .eq. -1)then
          call copy(dxm1,odxm1,lx1*lx1)
          call copy(dxtm1,odxtm1,lx1*lx1)
 
-         call copy(dym1,odxm1,lx1*lx1)
-         call copy(dytm1,odxtm1,lx1*lx1)
+         call copy(dym1,odym1,lx1*lx1)
+         call copy(dytm1,odytm1,lx1*lx1)
 
          if(if3d)then
-            call copy(dzm1,odxm1,lx1*lx1)
-            call copy(dztm1,odxtm1,lx1*lx1)
+            call copy(dzm1,odzm1,lx1*lx1)
+            call copy(dztm1,odztm1,lx1*lx1)
          endif
       endif
       
@@ -132,15 +132,16 @@ c
       
       call col2(cdi,bm1,ntot)
 
-      call cmult(cdi,svv_k1/glamax(cdi,ntot),ntot)
+      call cmult(cdi,1.0/glamax(cdi,ntot),ntot)
 
       call get_visc_switch(phi,switch)
-
+            
       do ie=1,nelv
          do i=1,nxyz
-            csf(i,1,1,ie) = switch(ie)*max(0.5,cdi(i,1,1,ie))
+            cnl = (lx1-1.0)**svv_k1
+            csf(i,1,1,ie) = switch(ie)*max(0.5,cnl*cdi(i,1,1,ie))
          enddo
-      enddo
+      enddo     
 c     
       return
       end
@@ -177,11 +178,11 @@ c
       ntot = nxyz*nelv
       
       call getspec3D(phi,phim)
-
+      
       if(icalld .eq. 0)then
          call rzero(maskh,nxyz)
          call rzero(maskl,nxyz)
-
+         
          if(if3d)then
             do k=1,lz1
                do j=1,ly1
@@ -200,7 +201,6 @@ c
                enddo
             enddo
          endif
-
          threshold = 10.0**((lx1-1.)/svv_k0)      
          icalld = 1
       endif
@@ -219,7 +219,7 @@ c
 
          switch(ie) = visc_switch(eratio*threshold)
       enddo
-      
+     
       return
       end
 c---------------------------------------------------------------------
@@ -255,6 +255,8 @@ c
 
       real blinv(lx1,lx1)
       save blinv
+
+      real tmp1(lx1,lx1)
 c
       integer icalld
       save icalld
@@ -304,10 +306,26 @@ c     Convoluted derivatives
       call mxm(cmat,lx1,dxm1,lx1,cdxm1,lx1)
       call mxm(dxtm1,lx1,cmatT,lx1,cdxtm1,lx1)
 
+      call mxm(cmat,ly1,dym1,ly1,cdym1,ly1)
+      call mxm(dytm1,ly1,cmatT,ly1,cdytm1,ly1)
+
+      if(if3d)then
+         call mxm(cmat,lz1,dzm1,lz1,cdzm1,lz1)
+         call mxm(dztm1,lz1,cmatT,lz1,cdztm1,lz1)
+      endif
+
 c     Store original derivatives
       call copy(odxm1,dxm1,lx1*lx1)
       call copy(odxtm1,dxtm1,lx1*lx1)
-     
+
+      call copy(odym1,dym1,ly1*ly1)
+      call copy(odytm1,dytm1,ly1*ly1)
+
+      if(if3d)then
+         call copy(odzm1,dzm1,lz1*lz1)
+         call copy(odztm1,dztm1,lz1*lz1)
+      endif
+      
       return
       end
 c---------------------------------------------------------------------      
@@ -366,7 +384,7 @@ c
       real a,k
       real n
 c
-      n = lx1-1
+      n = lx1-1.0
 
       call ident(q,lx1)
       
