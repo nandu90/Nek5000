@@ -1,0 +1,33 @@
+#
+# nek parameter file
+#
+[GENERAL]
+stopAt = numSteps
+numSteps = 20000
+
+dt = 5.0e-05
+variableDT = no
+timeStepper = bdf3
+
+writeControl = timeStep
+writeInterval = 1000
+
+writeDoublePrecision = yes
+
+#dealiasing = no
+
+[PROBLEMTYPE]
+equation = incompNS
+
+[PRESSURE]
+residualTol = 1e-5
+residualProj = yes
+
+[VELOCITY]
+residualTol = 1e-8
+density = 1
+viscosity = -100
+
+[TEMPERATURE]
+rhocp = 1.
+conductivity = 1.
