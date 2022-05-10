@@ -71,7 +71,7 @@ c
          call cmult(svvf,2.0,ntot)
          
 c     Scale with mu_0/N
-         call cmult(svvf,svv_c0/(lx1-1),ntot)
+         call cmult(svvf,svv_c0/(lx1-1.0),ntot)
          icalld = 1
       endif
 
@@ -130,8 +130,8 @@ c
          call vdot2(cdi,gradx,grady,gradx,grady,ntot)
       endif
       
-      call col2(cdi,bm1,ntot)
-
+c      call col2(cdi,bm1,ntot)
+      
       call cmult(cdi,1.0/glamax(cdi,ntot),ntot)
 
       call get_visc_switch(phi,switch)
@@ -139,9 +139,9 @@ c
       do ie=1,nelv
          do i=1,nxyz
             cnl = (lx1-1.0)**svv_k1
-            csf(i,1,1,ie) = switch(ie)*max(0.5,cnl*cdi(i,1,1,ie))
+            csf(i,1,1,ie) = switch(ie)*max(0.5,cnl*cdi(i,1,1,ie))            
          enddo
-      enddo     
+      enddo
 c     
       return
       end
