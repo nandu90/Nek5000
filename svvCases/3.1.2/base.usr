@@ -145,7 +145,7 @@ c
       ntot = nxyz*nelv
 
 c     SVV Parameters
-      svv_c0 = 0.1
+      svv_c0 = 1.0
       svvcut = (lx1-1)/2.0
       iburgers = 0
       ifsvv = .true.
