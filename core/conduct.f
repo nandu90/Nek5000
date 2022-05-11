@@ -10,6 +10,7 @@ C
       include 'SOLN'
       include 'MASS'
       include 'TSTEP'
+      include 'LVLSET'
       COMMON  /CPRINT/ IFPRINT
       LOGICAL          IFPRINT
       LOGICAL          IFCONV
@@ -35,7 +36,7 @@ C
       n   = lx1*ly1*lz1*nel
 
       if (igeom.eq.1) then   ! geometry at t^{n-1}
-
+         
          call makeq
          call lagscal
 
@@ -72,6 +73,7 @@ c        if (ifaxis.and.ifmhd) isd = 2 !This is a problem if T is to be T!
          if(ifsvv)call setmu_svv(t(1,1,1,1,ifield-1))
          call axhelm  (ta,t(1,1,1,1,ifield-1),h1,h2,imesh,ISD)
          call sub3    (tb,bq(1,1,1,1,ifield-1),ta,n)
+         if(ifredist)call col4(tb,tb,signls,signls,n)
          call bcneusc (ta,1)
          call add2    (tb,ta,n)
 

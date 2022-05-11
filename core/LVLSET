@@ -1,0 +1,13 @@
+c
+c     Level-Set Arrays
+c
+	real eps_ls
+	real eps_redist
+	logical ifredist
+
+	common /lsvar/ eps_ls,eps_redist,ifredist
+	
+	real signls(lx1,ly1,lz1,lelv)
+	real lsH(lx1,ly1,lz1,lelv)
+	
+	common /lsarrays/ signls,lsH
