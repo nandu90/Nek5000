@@ -131,8 +131,18 @@ c
       endif
       
 c      call col2(cdi,bm1,ntot)
+
+      do ie=1,nelv
+         dotmax = vlamax(cdi(1,1,1,ie),nxyz)
+         if(dotmax.gt.1e-10)then
+            dotinv = 1./dotmax
+         else
+            dotinv = 1e-10
+         endif
+         call cmult(cdi(1,1,1,ie),dotinv,nxyz)
+      enddo
       
-      call cmult(cdi,1.0/glamax(cdi,ntot),ntot)
+c      call cmult(cdi,1.0/glamax(cdi,ntot),ntot)
 
       call get_visc_switch(phi,switch)
             
