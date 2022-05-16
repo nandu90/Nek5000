@@ -1,0 +1,327 @@
+c-----------------------------------------------------------------------
+c  nek5000 user-file template
+c
+c  user specified routines:
+c     - uservp  : variable properties
+c     - userf   : local acceleration term for fluid
+c     - userq   : local source term for scalars
+c     - userbc  : boundary conditions
+c     - useric  : initial conditions
+c     - userchk : general purpose routine for checking errors etc.
+c     - userqtl : thermal divergence for lowMach number flows 
+c     - usrdat  : modify element vertices 
+c     - usrdat2 : modify mesh coordinates
+c     - usrdat3 : general purpose routine for initialization
+c     
+c-----------------------------------------------------------------------
+      subroutine uservp(ix,iy,iz,eg) ! set variable properties
+
+c      implicit none
+
+      integer ix,iy,iz,eg
+     
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      integer e
+c     e = gllel(eg)
+
+      udiff  = 0.0
+      utrans = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userf(ix,iy,iz,eg) ! set acceleration term
+c
+c     Note: this is an acceleration term, NOT a force!
+c     Thus, ffx will subsequently be multiplied by rho(x,t).
+c
+c      implicit none
+
+      integer ix,iy,iz,eg
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      integer e
+c     e = gllel(eg)
+
+      ffx = 0.0
+      ffy = 0.0
+      ffz = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userq(ix,iy,iz,ieg) ! set source term
+
+c      implicit none
+
+      integer ix,iy,iz,eg
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      integer ie
+      real q_clsconv
+      
+      ie = gllel(ieg)
+
+      if(ifield .eq. 3)then
+         qvol = q_clsconv(ix,iy,iz,ie)
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userbc(ix,iy,iz,iside,eg) ! set up boundary conditions
+c
+c     NOTE ::: This subroutine MAY NOT be called by every process
+c
+c      implicit none
+
+      integer ix,iy,iz,iside,eg
+
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+c      if (cbc(iside,gllel(eg),ifield).eq.'v01')
+
+c      ux   = 0.0
+c      uy   = 0.0
+c      uz   = 0.0
+c      temp = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine useric(ix,iy,iz,eg) ! set up initial conditions
+
+c      implicit none
+
+      integer ix,iy,iz,eg
+      integer e
+      
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+      include 'LVLSET'
+
+      integer icalld
+      save icalld
+      data icalld /0/
+      
+      e = gllel(eg)      
+      
+      ux = 0.0
+      uy = 0.0
+      uz = 0.0
+
+      if(icalld .eq. 0)call getElementLength
+      icalld = 1
+      eps_cls = 4.0
+      
+      if(ifield .eq. 3)then
+C     Initializes Level-set contour field         
+         x = xm1(ix,iy,iz,e)
+         y = ym1(ix,iy,iz,e)
+         
+         phi = x**2. + y**2. -0.25**2.
+         temp = heaviphase(ix,iy,iz,e,phi)
+      else
+C     Initializes Temperature
+         temp = 0.0
+      endif
+      
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userchk()
+c
+      include 'SIZE'
+      include 'TOTAL'
+      include 'SVV'
+      include 'LVLSET'
+
+      integer ibuild
+      save ibuild
+      data ibuild /0/
+
+      real intv(lx1,lx1)
+      save intv
+
+      real tmpt(lx1,ly1,lz1,lelv)
+      parameter(lxyz=lx1*ly1*lz1)
+      real wk1(lxyz),wk2(lxyz),wk3(lxyz)
+      common /tmpb/ tmpt,wk1,wk2,wk3
+
+      integer icalld
+      save icalld
+      data icalld /0/
+      
+      nxyz = lx1*ly1*lz1
+      ntot = nxyz*nelv
+
+c     SVV parameters
+      svvcut = (lx1-2.)/2.0
+      iburgers = 0
+      ifnlsvv = .false.
+      ifsvv = .true.
+
+      svv_c0 = 1.0
+      svv_k0 = 1.5
+      svv_k1 = 1.5
+
+c
+      ifredist = .false.
+c      eps_redist = 2.0
+c      ifld = 3
+c      call getLSsgn(ifld,eps_redist)
+c      call getRedistVel(ifld)
+
+      ifclsredist = .true.
+      eps_cls = 1.0
+c     Supply normals externally
+      if(icalld.eq.0)then
+         call getclsn
+
+c         call copy(vx,clsnx,ntot)
+c         call copy(vy,clsny,ntot)
+c         if(if3d)call copy(vz,clsnz,ntot)
+         icalld = 1
+      endif
+      
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userqtl ! Set thermal divergence
+
+      call userqtl_scig 
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat()   ! This routine to modify element vertices
+
+c      implicit none
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat2()  ! This routine to modify mesh coordinates
+
+c      implicit none
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat3()
+
+c      implicit none
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      ifflow = .false.
+      ifheat = .true.
+      
+      return
+      end
+c---------------------------------------------------------------------
+      subroutine getexact(exact)
+
+      include 'SIZE'
+      include 'TOTAL'
+      
+      real exact(lx1,ly1,lz1,nelv)
+
+      do ie =1,nelv
+         do k=1,lz1
+            do j=1,ly1
+               do i=1,lx1
+                  x = xm1(i,j,k,ie)
+                  y = ym1(i,j,k,ie)
+                  
+                  r = 1.
+                  a = 0.7
+
+                  b = (a-x)/sqrt((a-x)**2+y**2)
+                  c = (a+x)/sqrt((a+x)**2+y**2)
+                  d = a/r
+
+                  if(b .ge. d .and. c .ge. d)then
+                     e1 = -sqrt(x**2 + (y + sqrt(r**2-a**2))**2)
+                     e2 = -sqrt(x**2 + (y - sqrt(r**2-a**2))**2)              
+                     exact(i,j,k,ie) = max(e1,e2)
+                  else
+                     e1 = sqrt((x+a)**2 + y**2)-r
+                     e2 = sqrt((x-a)**2 + y**2)-r
+                     exact(i,j,k,ie) = min(e1,e2)
+                  endif
+               enddo
+            enddo
+         enddo
+      enddo
+
+      end
+c---------------------------------------------------------------------
+      subroutine arrabs(a,n)
+      real a(1)
+      integer n
+
+      do i=1,n
+         a(i) = abs(a(i))
+      enddo
+      
+      RETURN
+      end
+c---------------------------------------------------------------------
+      subroutine getclsn
+c
+      include 'SIZE'
+      include 'TOTAL'
+      include 'LVLSET'
+
+      real phi(lx1,ly1,lz1,lelv)
+      real tmp(lx1,ly1,lz1,lelv)
+      
+      integer icalld
+      save icalld
+      data icalld /0/
+
+      nxyz = lx1*ly1*lz1
+      ntot = nxyz*nelv
+      
+      do i=1,ntot
+         x = xm1(i,1,1,1)
+         y = ym1(i,1,1,1)
+         phi(i,1,1,1) = x**2. + y**2. -0.25**2.
+      enddo
+      call gradm1(clsnx,clsny,clsnz,phi)
+      call opcolv(clsnx,clsny,clsnz,bm1)
+      call opdssum(clsnx,clsny,clsnz)
+      call opcolv(clsnx,clsny,clsnz,binvm1)
+      
+      if(if3d)then
+         call vdot3(tmp,clsnx,clsny,clsnz,clsnx,clsny,clsnz,ntot)
+      else
+         call vdot2(tmp,clsnx,clsny,clsnx,clsny,ntot)
+      endif
+      do i=1,ntot
+         tmp(i,1,1,1) = 1./sqrt(tmp(i,1,1,1))
+      enddo
+      call opcolv(clsnx,clsny,clsnz,tmp)
+      
+      return
+      end
+         

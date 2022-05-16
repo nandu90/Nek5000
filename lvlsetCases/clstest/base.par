@@ -1,0 +1,42 @@
+#
+# nek parameter file
+#
+[GENERAL]
+#startFrom = base.old
+stopAt = numSteps
+numSteps = 100 #
+
+dt = 10.0e-06
+variableDT = yes
+targetCFL = 0.01
+timeStepper = bdf3
+
+writeControl = timeStep
+writeInterval = 10
+
+writeDoublePrecision = yes
+
+#filtering = hpfrt
+#filterWeight = 10
+#filterCutoffRatio = 0.1
+
+[PROBLEMTYPE]
+equation = incompNS
+
+[PRESSURE]
+residualTol = 1e-5
+residualProj = yes
+
+[VELOCITY]
+residualTol = 1e-8
+density = 1
+viscosity = -100
+
+[TEMPERATURE]
+solver = none
+rhocp = 1.
+conductivity = 1.
+
+[SCALAR01]
+density = 1.0
+diffusivity = 1.0

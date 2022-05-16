@@ -48,6 +48,7 @@ c
       include 'SIZE'
       include 'TOTAL'
       include 'SVV'
+      include 'LVLSET'
 c
       real phi(lx1,ly1,lz1,lelt)
       real csf(lx1,ly1,lz1,lelt)
@@ -76,9 +77,15 @@ c     Scale with mu_0/N
       endif
 
 c     Scale with advection velocity
-      call col3(svvmu,vx,vx,ntot)
-      call addcol3(svvmu,vy,vy,ntot)
-      if(if3d) call addcol3(svvmu,vz,vz,ntot)
+      if(.not.ifclsredist)then
+         call col3(svvmu,vx,vx,ntot)
+         call addcol3(svvmu,vy,vy,ntot)
+         if(if3d) call addcol3(svvmu,vz,vz,ntot)
+      else
+         call col3(svvmu,clsnx,clsnx,ntot)
+         call addcol3(svvmu,clsny,clsny,ntot)
+         if(if3d) call addcol3(svvmu,clsnz,clsnz,ntot)
+      endif
       do i=1,ntot
          svvmu(i,1,1,1) = svvmu(i,1,1,1)**0.5
       enddo

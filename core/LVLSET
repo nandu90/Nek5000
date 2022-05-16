@@ -11,3 +11,25 @@ c
 	real lsH(lx1,ly1,lz1,lelv)
 	
 	common /lsarrays/ signls,lsH
+
+c
+c	Conservative level-set arrays
+c
+	real eps_cls
+	logical ifclsredist
+
+	common /clsvar/ eps_cls,ifclsredist
+
+	real clsnx(lx1,ly1,lz1,lelv)
+	real clsny(lx1,ly1,lz1,lelv)
+	real clsnz(lx1,ly1,lz1,lelv)
+	real clsnr(lx1,ly1,lz1,lelv)
+	real clsns(lx1,ly1,lz1,lelv)
+	real clsnt(lx1,ly1,lz1,lelv)
+
+	real clsadv(lx1,ly1,lz1,lelv)
+	real clsau(lx1,ly1,lz1,lelv)
+
+	common /clsarr1/ clsnx,clsny,clsnz
+	common /clsarr2/ clsnr,clsns,clsnt
+	common /clsarr3/ clsadv,clsau
