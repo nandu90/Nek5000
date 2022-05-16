@@ -4,15 +4,15 @@
 [GENERAL]
 #startFrom = base.old
 stopAt = numSteps
-numSteps = 100 #
+numSteps = 20000 #
 
-dt = 10.0e-06
+dt = 50.0e-06
 variableDT = yes
 targetCFL = 0.01
 timeStepper = bdf3
 
 writeControl = timeStep
-writeInterval = 10
+writeInterval = 2000
 
 writeDoublePrecision = yes
 

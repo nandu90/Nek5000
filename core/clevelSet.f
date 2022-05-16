@@ -32,7 +32,6 @@ c     psi(1-psi)
       call col2(tmp,t(1,1,1,1,ifld-1),ntot)
 
       call convect_cons(clsadv,tmp,.false.,clsnx,clsny,clsnz,.false.)
-c      call col2(clsadv,bm1,ntot)
       call invcol2(clsadv,bm1,ntot)
      
       return
@@ -97,17 +96,15 @@ c     \nabla \psi . n
 
 c     Get the normal vector in rst space
 c     This should be moved out of this routine - pending
-c      call vec_xyz2rst(clsnx,clsny,clsnz,clsnr,clsns,clsnt)
-c      call copy(vx,clsnr,ntot)
-c      call copy(vy,clsns,ntot)
+      call vec_xyz2rst(clsnx,clsny,clsnz,clsnr,clsns,clsnt)
       
       call rzero(clsau,ntot)
             
 c     The following is almost similar to axhelm
       do e=1,nelv
          if(ldim.eq.2)then
-            call copy(tm1,clsnx(1,1,1,e),nxyz)
-            call copy(tm2,clsny(1,1,1,e),nxyz)
+            call copy(tm1,clsnr(1,1,1,e),nxyz)
+            call copy(tm2,clsns(1,1,1,e),nxyz)
 
             call col3(tmp1,tm1,g1m1(1,1,1,e),nxyz)
             call col3(tmp2,tm2,g2m1(1,1,1,e),nxyz)
@@ -117,7 +114,7 @@ c     The following is almost similar to axhelm
             endif
 
             call copy(eps,lsH(1,1,1,e),nxyz)
-            call cmult(eps,eps_cls,nxyz)
+            call cmult(eps,0.125*eps_cls,nxyz) !be careful about this factor
             call col2(eps,tmp(1,1,1,e),nxyz)
 
             call col2(tmp1,eps,nxyz)
@@ -146,7 +143,7 @@ c     The following is almost similar to axhelm
             endif
 
             call copy(eps,lsH(1,1,1,e),nxyz)
-            call cmult(eps,eps_cls,nxyz)
+            call cmult(eps,0.125*eps_cls,nxyz)
             call col2(eps,tmp(1,1,1,e),nxyz)
 
             call col2(tmp1,eps,nxyz)

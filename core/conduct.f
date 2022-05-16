@@ -37,9 +37,7 @@ C
 
       if (igeom.eq.1) then   ! geometry at t^{n-1}
 
-         call clsconv(ifield)
-         call copy(pr,clsadv,n)
-         call col2(pr,bm1,n)
+         if(ifclsredist)call clsconv(ifield)
          call makeq
          call lagscal
 
@@ -61,8 +59,6 @@ C
          isd = 1
          if (ifaxis.and.ifaziv.and.ifield.eq.2) isd = 2
 c        if (ifaxis.and.ifmhd) isd = 2 !This is a problem if T is to be T!
-
-         
          
          do 1000 iter=1,nmxnl ! iterate for nonlin. prob. (e.g. radiation b.c.)
 
@@ -78,14 +74,12 @@ c        if (ifaxis.and.ifmhd) isd = 2 !This is a problem if T is to be T!
          if(ifsvv)call modifyDer(1)
          call axhelm  (ta,t(1,1,1,1,ifield-1),h1,h2,imesh,ISD)
          if(ifsvv)call modifyDer(-1)
-         
-         call clsaxhelm(ifield)
-         call add2(ta,clsau,n)
-         call copy(t(1,1,1,1,1),clsau,n)
-         call col2(t(1,1,1,1,1),bm1,n)
-         call dssum(t(1,1,1,1,1),lx1,ly1,lz1)
-         call col2(t(1,1,1,1,1),binvm1,n)
-         
+
+         if(ifclsredist)then
+            call clsaxhelm(ifield)
+            call add2(ta,clsau,n)
+         endif
+                  
          call sub3    (tb,bq(1,1,1,1,ifield-1),ta,n)
          if(ifredist)call col4(tb,tb,signls,signls,n)
          call bcneusc (ta,1)
