@@ -178,31 +178,6 @@ c     SVV parameters
 c
       ifredist = .true.
       eps_redist = 2.0
-      ifld = 3
-c      call getLSsgn(ifld,eps_redist)
-c      call getRedistVel(ifld)
-
-c$$$c     Apply filter to avoid severe kink inside the circle
-c$$$      ncut = lx1-1
-c$$$      wght = 1.0
-c$$$      if(ibuild.eq.0)then
-c$$$         call build_new_filter(intv,zgm1,lx1,ncut,wght,nio)
-c$$$         ibuild = 1
-c$$$      endif
-c$$$
-c$$$c      call exit(1)
-c$$$      
-c$$$      call copy(tmpt,t(1,1,1,1,ifld-1),ntot)
-c$$$      call filterq(tmpt,intv,lx1,lz1,wk1,wk2,wk3,if3d,tmax)
-c$$$      do i=1,ntot
-c$$$c         if(signls(i,1,1,1).lt.-2.0*eps_redist*lsH(i,1,1,1))then
-c$$$            t(i,1,1,1,ifld-1) = tmpt(i,1,1,1)
-c$$$c         endif
-c$$$      enddo
-c$$$
-c$$$      call col2(t(1,1,1,1,ifld-1),bm1,ntot)
-c$$$      call dssum(t(1,1,1,1,ifld-1),lx1,ly1,lz1)
-c$$$      call col2(t(1,1,1,1,ifld-1),binvm1,ntot)
       
       return
       end
