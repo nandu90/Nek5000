@@ -1,30 +1,52 @@
-c---------------------------------------------------------------------      
-      subroutine getRedistVel(ifld)
+c---------------------------------------------------------------------
+      subroutine tlsconv(ifld)
 c
       include 'SIZE'
       include 'TOTAL'
       include 'LVLSET'
 c
-      real tmp(lx1,ly1,lz1,lelt)
-c
+      real tmp(lx1,ly1,lz1,lelv)
+
+      common /tlstemp/ tls
+      
       nxyz = lx1*ly1*lz1
       ntot = nxyz*nelv
 
-      call gradm1(vx,vy,vz,t(1,1,1,1,ifld-1))
-      call opcolv(vx,vy,vz,bm1)
-      call opdssum(vx,vy,vz)
-      call opcolv(vx,vy,vz,binvm1)
+c     get LS sign
+      call getLSsgn(ifld,eps_redist)
       
-      call col3(tmp,vx,vx,ntot)
-      call addcol3(tmp,vy,vy,ntot)
-      if(if3d)call addcol3(tmp,vz,vz,ntot)
+c     Redistancing velocity
+      call gradm1(tlsvx,tlsvy,tlsvz,t(1,1,1,1,ifld-1))
+      call opcolv(tlsvx,tlsvy,tlsvz,bm1)
+      call opdssum(tlsvx,tlsvy,tlsvz)
+      call opcolv(tlsvx,tlsvy,tlsvz,binvm1)
+      
+      call col3(tmp,tlsvx,tlsvx,ntot)
+      call addcol3(tmp,tlsvy,tlsvy,ntot)
+      if(if3d)call addcol3(tmp,tlsvz,tlsvz,ntot)
 
       do i=1,ntot
          tmp(i,1,1,1) = max(1.0e-15,sqrt(tmp(i,1,1,1)))
       enddo
 
-      call opicol2(vx,vy,vz,tmp,tmp,tmp)
-      call opcolv(vx,vy,vz,signls)
+      call opicol2(tlsvx,tlsvy,tlsvz,tmp,tmp,tmp)
+      call opcolv(tlsvx,tlsvy,tlsvz,signls)
+
+c     convective term
+      call convect_new(tlsadv,t(1,1,1,1,ifld-1),.false.,
+     $     tlsvx,tlsvy,tlsvz,.false.)
+      
+      call invcol2(tlsadv,bm1,ntot)
+      return
+      end
+c---------------------------------------------------------------------
+      real function q_tlsconv(ix,iy,iz,ie)
+c
+      include 'SIZE'
+      include 'TOTAL'
+      include 'LVLSET'
+c
+      q_tlsconv = -tlsadv(ix,iy,iz,ie)
 
       return
       end

@@ -5,12 +5,16 @@ c
 	real eps_redist
 	logical ifredist
 
-	common /lsvar/ eps_ls,eps_redist,ifredist
+	common /tlsvar/ eps_ls,eps_redist,ifredist
 	
 	real signls(lx1,ly1,lz1,lelv)
 	real lsH(lx1,ly1,lz1,lelv)
+	real tlsvx(lx1,ly1,lz1,lelv)
+	real tlsvy(lx1,ly1,lz1,lelv)
+	real tlsvz(lx1,ly1,lz1,lelv)
+	real tlsadv(lx1,ly1,lz1,lelv)
 	
-	common /lsarrays/ signls,lsH
+	common /tlsarrays/ signls,lsH,tlsvx,tlsvy,tlsvz,tlsadv
 
 c
 c	Conservative level-set arrays

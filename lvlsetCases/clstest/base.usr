@@ -117,13 +117,13 @@ c      implicit none
       
       e = gllel(eg)      
       
-      ux = 0.0
+      ux = 1.0
       uy = 0.0
       uz = 0.0
 
       if(icalld .eq. 0)call getElementLength
       icalld = 1
-      eps_cls = 4.0
+      eps_cls = 8.0
       
       if(ifield .eq. 3)then
 C     Initializes Level-set contour field         

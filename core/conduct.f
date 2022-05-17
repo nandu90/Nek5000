@@ -37,7 +37,11 @@ C
 
       if (igeom.eq.1) then   ! geometry at t^{n-1}
 
-         if(ifclsredist)call clsconv(ifield)
+         if(ifclsredist .or. ifredist)then
+            ifadvc(ifield) = .false.
+            if(ifclsredist)call clsconv(ifield)
+            if(ifredist)call tlsconv(ifield)
+         endif
          call makeq
          call lagscal
 

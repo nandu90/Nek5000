@@ -71,7 +71,7 @@ c      implicit none
       ie = gllel(ieg)
 
       if(ifield .eq. 3)then
-         qvol = sgnfuncLS(ix,iy,iz,ie)
+         qvol = sgnfuncLS(ix,iy,iz,ie)+q_tlsconv(ix,iy,iz,ie)
       endif
 
       return
@@ -179,8 +179,8 @@ c
       ifredist = .true.
       eps_redist = 2.0
       ifld = 3
-      call getLSsgn(ifld,eps_redist)
-      call getRedistVel(ifld)
+c      call getLSsgn(ifld,eps_redist)
+c      call getRedistVel(ifld)
 
 c$$$c     Apply filter to avoid severe kink inside the circle
 c$$$      ncut = lx1-1
