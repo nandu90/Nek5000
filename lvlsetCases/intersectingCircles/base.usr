@@ -175,9 +175,10 @@ c     SVV parameters
       svv_k0 = 1.5
       svv_k1 = 1.5
 
-c
-      ifredist = .true.
       eps_redist = 2.0
+      ifld_tls = 3
+      nsteps_tls = 10
+      call drivels
       
       return
       end

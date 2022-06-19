@@ -77,11 +77,11 @@ c     Scale with mu_0/N
       endif
 
 c     Scale with advection velocity
-      if(ifclsredist)then
+      if(ifclsredist(ifld_cls-1))then
          call col3(svvmu,clsnx,clsnx,ntot)
          call addcol3(svvmu,clsny,clsny,ntot)
          if(if3d) call addcol3(svvmu,clsnz,clsnz,ntot)
-      elseif(ifredist)then
+      elseif(ifredist(ifld_tls-1))then
          call col3(svvmu,tlsvx,tlsvx,ntot)
          call addcol3(svvmu,tlsvy,tlsvy,ntot)
          if(if3d) call addcol3(svvmu,tlsvz,tlsvz,ntot)

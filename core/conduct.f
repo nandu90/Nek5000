@@ -37,10 +37,10 @@ C
 
       if (igeom.eq.1) then   ! geometry at t^{n-1}
 
-         if(ifclsredist .or. ifredist)then
+         if(ifclsredist(ifield-1) .or. ifredist(ifield-1))then
             ifadvc(ifield) = .false.
-            if(ifclsredist)call clsconv(ifield)
-            if(ifredist)call tlsconv(ifield)
+            if(ifclsredist(ifield-1))call clsconv(ifield)
+            if(ifredist(ifield-1))call tlsconv(ifield)
          endif
          call makeq
          call lagscal
@@ -79,13 +79,13 @@ c        if (ifaxis.and.ifmhd) isd = 2 !This is a problem if T is to be T!
          call axhelm  (ta,t(1,1,1,1,ifield-1),h1,h2,imesh,ISD)
          if(ifsvv)call modifyDer(-1)
 
-         if(ifclsredist)then
+         if(ifclsredist(ifield-1))then
             call clsaxhelm(ifield)
             call add2(ta,clsau,n)
          endif
                   
          call sub3    (tb,bq(1,1,1,1,ifield-1),ta,n)
-         if(ifredist)call col4(tb,tb,signls,signls,n)
+         if(ifredist(ifield-1))call col4(tb,tb,signls,signls,n)
          call bcneusc (ta,1)
          call add2    (tb,ta,n)
 

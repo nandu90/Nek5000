@@ -4,7 +4,7 @@
 [GENERAL]
 startFrom = base.old
 stopAt = numSteps
-numSteps = 150000
+numSteps = 15000
 
 dt = 10.0e-06
 variableDT = yes
@@ -12,7 +12,7 @@ targetCFL = 0.01
 timeStepper = bdf3
 
 writeControl = timeStep
-writeInterval = 10000
+writeInterval = 1000
 
 writeDoublePrecision = yes
 
@@ -38,5 +38,6 @@ rhocp = 1.
 conductivity = 1.
 
 [SCALAR01]
+#solver = none
 density = 1.0
 diffusivity = 1.0

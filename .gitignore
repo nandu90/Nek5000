@@ -21,3 +21,20 @@ bin/re2torea
 bin/reatore2
 
 __pycache__
+
+# output files
+**/obj/
+*.avi
+*.nek5000
+*.log*
+*.re2
+*.ma2
+*.pvsm
+*makefile
+*nek5000
+*SESSION.NAME
+*.f0*
+*#*
+*~*
+*logfile
+*.state

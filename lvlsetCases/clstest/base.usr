@@ -176,14 +176,6 @@ c     SVV parameters
       svv_k0 = 1.5
       svv_k1 = 1.5
 
-c
-      ifredist = .false.
-c      eps_redist = 2.0
-c      ifld = 3
-c      call getLSsgn(ifld,eps_redist)
-c      call getRedistVel(ifld)
-
-      ifclsredist = .true.
       eps_cls = 1.0
 c     Supply normals externally
       if(icalld.eq.0)then
@@ -194,6 +186,10 @@ c         call copy(vy,clsny,ntot)
 c         if(if3d)call copy(vz,clsnz,ntot)
          icalld = 1
       endif
+
+      ifld_cls = 3
+      nsteps_cls = 10
+      call drivels
       
       return
       end

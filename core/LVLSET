@@ -3,9 +3,10 @@ c     Level-Set Arrays
 c
 	real eps_ls
 	real eps_redist
-	logical ifredist
-
-	common /tlsvar/ eps_ls,eps_redist,ifredist
+	logical ifredist(10)
+	integer ifld_tls
+	
+	common /tlsvar/ eps_ls,eps_redist,ifredist,ifld_tls
 	
 	real signls(lx1,ly1,lz1,lelv)
 	real lsH(lx1,ly1,lz1,lelv)
@@ -20,9 +21,10 @@ c
 c	Conservative level-set arrays
 c
 	real eps_cls
-	logical ifclsredist
-
-	common /clsvar/ eps_cls,ifclsredist
+	logical ifclsredist(10)
+	integer ifld_cls
+	
+	common /clsvar/ eps_cls,ifclsredist,ifld_cls
 
 	real clsnx(lx1,ly1,lz1,lelv)
 	real clsny(lx1,ly1,lz1,lelv)
@@ -37,3 +39,16 @@ c
 	common /clsarr1/ clsnx,clsny,clsnz
 	common /clsarr2/ clsnr,clsns,clsnt
 	common /clsarr3/ clsadv,clsau
+
+c
+c	Driver variables
+c
+	real dt_tls,dt_cls
+	real cfl_tls,cfl_cls
+
+	integer nsteps_tls,nsteps_cls
+	
+	common /lsdrive1/ dt_tls,dt_cls
+	common /lsdrive2/ cfl_tls,cfl_cls
+	common /lsdrive3/ nsteps_tls,nsteps_cls
+	
