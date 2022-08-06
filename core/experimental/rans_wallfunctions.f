@@ -217,7 +217,7 @@ c---------------------------------------------------------------------
       factro= 0.5 + visc/veddy 
 
       if(utau.ne.0.)then
-         flux_tau = kappa*(u_k)*tauw*factro
+         flux_tau = kappa*ukstar*tauw*factro
       else
          flux_tau = 0.
       endif
