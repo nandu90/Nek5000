@@ -35,7 +35,7 @@ c---------------------------------------------------------------------
       include 'NEKUSE'
       
       integer ix,iy,iz,iside,e
-      real tw1,tw2,tke,flux_tau
+      real tw1,tw2,tauwall,flux_tau
 
       real wd
       common /walldist/ wd(lx1,ly1,lz1,lelv)
@@ -71,10 +71,11 @@ c---------------------------------------------------------------------
 
       if(cbv3.eq.'shl')then
          if(.not.ifpwf)then
-            call standard_ktau_wf(ix,iy,iz,iside,e,tw1,tw2,tke,flux_tau)
+            call standard_ktau_wf(ix,iy,iz,iside,e,tw1,tw2,
+     $           tauwall,flux_tau)
          else
             call pcorrected_ktau_wf(ix,iy,iz,iside,e,tw1,tw2,
-     $           tke,flux_tau)
+     $           tauwall,flux_tau)
          endif
          flux_tau = flux_tau*sgnydn
       endif
@@ -89,7 +90,7 @@ c---------------------------------------------------------------------
          temp = 0.0
       elseif(ifield.eq.3)then
          if(cbk3.eq.'t  ' .and. cbv3.eq.'shl') then
-            temp= tke !not used
+            temp= 0. !not used
          elseif(cbk3.eq.'t  ' .and. cbv3.eq.'W  ') then
             temp= 0.
          elseif(cbk3.eq.'f  ' .and. cbv3.eq.'shl') then
@@ -99,7 +100,7 @@ c---------------------------------------------------------------------
          endif
       elseif (ifield.eq.4) then
          if(cbo3.eq.'t  ' .and. cbv3.eq.'shl') then
-            temp = 0.0 !not used
+            temp = tauwall 
          elseif(cbo3.eq.'t  ' .and. cbv3.eq.'W  ') then
             temp= 0.
          elseif(cbo3.eq.'f  ' .and. cbv3.eq.'shl') then
@@ -113,20 +114,20 @@ c---------------------------------------------------------------------
       return
       end
 c---------------------------------------------------------------------
-      subroutine standard_ktau_wf(ix,iy,iz,iside,e,tw1,tw2,tke,flux_tau)
+      subroutine standard_ktau_wf(ix,iy,iz,iside,e,tw1,tw2,tau,flux_tau)
       implicit none
       include 'SIZE'
       include 'TOTAL'
       include 'NEKUSE'
 
       integer ix,iy,iz,e,iside
-      real tw1,tw2,tke,flux_tau
+      real tw1,tw2,tau,flux_tau
 
       real tsn(3),bsn(3),usn(3)
       real yplusc,Econ,sCmu,Ccon,kappa
       real alp,bet,tol,tolmax
       real visc,dens
-      real kw,tauw,u_k
+      real kw,tauw,u_k,tke
 
       common /pgrads/ dpdx(lx1,ly1,lz1,lelt),dpdy(lx1,ly1,lz1,lelt),
      $     dpdz(lx1,ly1,lz1,lelt)
@@ -221,18 +222,26 @@ c---------------------------------------------------------------------
       else
          flux_tau = 0.
       endif
+
+      tke = ukstar**2/sCmu
+      if(tke.eq.0)then
+         tau = 0.
+      else
+         tau = veddy/tke
+      endif
+      
       return
       end
 c---------------------------------------------------------------------      
       subroutine pcorrected_ktau_wf(ix,iy,iz,iside,e,tw1,
-     $     tw2,tke,flux_tau)
+     $     tw2,tau,flux_tau)
       implicit none
       include 'SIZE'
       include 'TOTAL'
       include 'NEKUSE'
 
       integer ix,iy,iz,e,iside
-      real tw1,tw2,tke,flux_tau
+      real tw1,tw2,tke,flux_tau,tau
 
       real tsn(3),bsn(3),usn(3)
       real yplusc,Econ,sCmu,Ccon,kappa
@@ -441,6 +450,14 @@ c---------------------------------------------------------------------
          write(*,*)tw1,flux_tau,utau
          call exit(1)
       endif
+
+      tke = ukstar**2/sCmu
+      if(tke.eq.0)then
+         tau = 0.
+      else
+         tau = veddy/tke
+      endif
+
       return
       end
 c---------------------------------------------------------------------
