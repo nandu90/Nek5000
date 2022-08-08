@@ -81,12 +81,13 @@ c
          tpres=tpres+(dnekclock()-etime1)
 
          ! compute velocity
-         if(ifstrs .and. .not.ifaxis) then
+c         if(ifstrs) then
+c            call bcneutr
+c            call cresvsp_weak(res1,res2,res3,h1,h2)
+c         else
             call bcneutr
-            call cresvsp_weak(res1,res2,res3,h1,h2)
-         else
             call cresvsp     (res1,res2,res3,h1,h2)
-         endif
+c         endif
          call ophinv       (dv1,dv2,dv3,res1,res2,res3,h1,h2,tolhv,nmxv)
          call opadd2       (vx,vy,vz,dv1,dv2,dv3)
 
