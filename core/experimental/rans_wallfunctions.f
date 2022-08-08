@@ -682,7 +682,7 @@ c     fixes masks for SYM face corners
       call oprzero(rt1x,rt1y,rt1z)
       call oprzero(rt2x,rt2y,rt2z)
 
-      write(*,*) 'element faces from fixmask2'
+c      write(*,*) 'element faces from fixmask2'
       do 1000 iel=1,nelv
       ieg = lglel(iel)
       do 100 iface=1,nfaces
