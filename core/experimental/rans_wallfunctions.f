@@ -124,7 +124,7 @@ c---------------------------------------------------------------------
       real yplusc,Econ,sCmu,Ccon,kappa
       real alp,bet,tol,tolmax
       real visc,dens
-      real kw,tauw,u_k,tke
+      real kw,tauw,u_k,tke,omega
 
       common /pgrads/ dpdx(lx1,ly1,lz1,lelt),dpdy(lx1,ly1,lz1,lelt),
      $     dpdz(lx1,ly1,lz1,lelt)
@@ -221,10 +221,11 @@ c---------------------------------------------------------------------
       endif
 
       tke = ukstar**2/sCmu
-      if(tke.lt.1e-6)then
+      omega = dens*tke/veddy
+      if(omega.lt.1.)then
          tau = 0.
       else
-         tau = veddy/tke
+         tau = 1./omega
       endif
       
       return
@@ -238,7 +239,7 @@ c---------------------------------------------------------------------
       include 'NEKUSE'
 
       integer ix,iy,iz,e,iside
-      real tw1,tw2,tke,flux_tau,tau
+      real tw1,tw2,tke,flux_tau,tau,omega
 
       real tsn(3),bsn(3),usn(3)
       real yplusc,Econ,sCmu,Ccon,kappa
@@ -449,12 +450,13 @@ c---------------------------------------------------------------------
       endif
 
       tke = ukstar**2/sCmu
-      if(tke.lt.1e-6)then
+      omega = dens*tke/veddy
+      if(omega.lt.1.)then
          tau = 0.
       else
-         tau = veddy/tke
+         tau = 1./omega
       endif
-
+      
       return
       end
 c---------------------------------------------------------------------
