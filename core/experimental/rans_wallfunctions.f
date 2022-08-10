@@ -219,15 +219,19 @@ c---------------------------------------------------------------------
       else
          flux_tau = 0.
       endif
-
+      
       tke = ukstar**2/sCmu
-      omega = dens*tke/veddy
+      if(veddy.eq.0. .or. veddy.ne.veddy)then
+         omega = 0.0
+      else
+         omega = dens*tke/veddy
+      endif
       if(omega.lt.1.)then
-         tau = 0.
+         tau = 1e-6
       else
          tau = 1./omega
       endif
-      
+
       return
       end
 c---------------------------------------------------------------------      
@@ -278,15 +282,10 @@ c---------------------------------------------------------------------
 
       real utau1,utau2
 
-      integer method_ut2
+      integer method_ut2,i
 
       method_ut2 = 1 !tomboulides
       method_ut2 = 2 !saini
-
-      if(icalld.eq.0)then
-         call rone(utold,lx1*ly1*lz1*nelt)
-         icalld = 1
-      endif
       
       yplusc = 30.0
       Econ = 9.0
@@ -303,6 +302,13 @@ c---------------------------------------------------------------------
       kw       = abs(ps(1))
       tauw     = abs(ps(2))
       u_k      = sqrt(sCmu*kw)
+
+      if(icalld.eq.0)then
+         do i=1,lx1*ly1*lz1*nelt
+            utold(i,1,1,1) = sqrt(t(i,1,1,1,2)*sCmu)
+         enddo
+         icalld = 1
+      endif
 
 !     Get the tangent and bi-tangent vectors
       call getangent   (tsn,ix,iy,iz,iside,e)
@@ -450,7 +456,11 @@ c---------------------------------------------------------------------
       endif
 
       tke = ukstar**2/sCmu
-      omega = dens*tke/veddy
+      if(veddy.eq.0. .or. veddy.ne.veddy)then
+         omega = 0.0
+      else
+         omega = dens*tke/veddy
+      endif
       if(omega.lt.1.)then
          tau = 0.
       else
