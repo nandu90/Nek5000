@@ -488,12 +488,15 @@ c---------------------------------------------------------------------
       
 !     The lower limit of utau is known
 !     Close to zero value would also work
-      if(cospsi.eq.1.0)then
-         llim = abs(-up*alp*kappa+sqrt(k*sCmu))
-      elseif(cospsi.eq.-1.0)then
-         llim = up*alp*kappa+sqrt(k*sCmu)
-      endif
+      llim = abs(-up*alp*kappa+sqrt(k*sCmu))
       utau = max(llim,utau)
+      if(.not.if3d)then
+         if(cospsi.eq.1.0)then
+            utau = abs(-up*alp*kappa+sqrt(k*sCmu))
+         elseif(cospsi.eq.-1.0)then
+            utau = up*alp*kappa+sqrt(k*sCmu)
+         endif
+      endif      
       uc = utau+up
       
       utauplus = 0.
