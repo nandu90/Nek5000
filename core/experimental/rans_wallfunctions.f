@@ -208,7 +208,8 @@ c---------------------------------------------------------------------
       tw2 = 0.
       
       tw1 = (ut1/u1plusc)*utau*dens
-            
+      tw2 = (ut2/u1plusc)*utau*dens
+
       ukstar = utau
             
       veddy = kappa*visc*yplusc !*ukstar/uc
