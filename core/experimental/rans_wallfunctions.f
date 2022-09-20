@@ -391,7 +391,7 @@ c---------------------------------------------------------------------
       
       if(method_ut2.eq.2)then
          utau2 = utold(ix,iy,iz,e)
-         call newton_utau(utau2,cospsi,up,cosphi,uw,kw,if3d,nid)
+         call newton_utau(utau2,up,cosphi,uw,kw,if3d,nid)
          utold(ix,iy,iz,e) = utau2 
       elseif(method_ut2.eq.1)then
          utau2 = sqrt(u_k**2.+(up*alp*kappa)**2.
@@ -471,14 +471,12 @@ c---------------------------------------------------------------------
       return
       end
 c---------------------------------------------------------------------
-      real function futau(utau,up,cospsi,cosphi,u,k,
-     $     if3d,sgncos,i,maxiter)
+      real function futau(utau,up,cosphi,u,k,
+     $     if3d)
       implicit none
 
-      real utau,up,cosphi,u,k,sgncos
-
-      integer i,maxiter
-
+      real utau,up,cosphi,u,k
+      
       logical if3d
       
       real kappa,alp,bet,Ccon,yplusc,sCmu
@@ -491,13 +489,6 @@ c---------------------------------------------------------------------
 !     Close to zero value would also work
       llim = abs(-up*alp*kappa+sqrt(k*sCmu))
       utau = max(llim,utau)
-      if(.not.if3d)then
-         if(cospsi.eq.1.0)then
-            utau = abs(-up*alp*kappa+sqrt(k*sCmu))
-         elseif(cospsi.eq.-1.0)then
-            utau = up*alp*kappa+sqrt(k*sCmu)
-         endif
-      endif      
       uc = utau+up
       
       utauplus = 0.
@@ -514,30 +505,27 @@ c---------------------------------------------------------------------
       if(utau.ne.0. .and. uc.ne.0.)then
          cospsi = (u*cosphi - up*upplus)/(utauplus*utau)
       endif
-         
+
+      if(cospsi.gt.1.0)cospsi = 1.
+      if(cospsi.lt.-1.0)cospsi = -1.
+      
       if(.not.if3d)then
          if(cospsi.ge.0.)then
             cospsi = 1.
+            utau = abs(-up*alp*kappa+sqrt(k*sCmu))
          else
             cospsi = -1.
-         endif
-         if(i.le.maxiter/2)then
-            sgncos = cospsi
-         else
-            cospsi = sgncos     !fix angle to prevent sign change around zero
+            utau = up*alp*kappa+sqrt(k*sCmu)
          endif
       endif
       
-      if(cospsi.gt.1.0)cospsi = 1.
-      if(cospsi.lt.-1.0)cospsi = -1.
-
       futau = utau**2. + (up*alp*kappa)**2.
      $     + 2.*up*alp*kappa*utau*cospsi - k*sCmu
 
       return
       end
 c---------------------------------------------------------------------          
-      subroutine newton_utau(utau,cospsi,up,cosphi,u,k,if3d,nid)
+      subroutine newton_utau(utau,up,cosphi,u,k,if3d,nid)
       implicit none
 
       real utau,cospsi,up,cosphi,u,k
@@ -561,7 +549,6 @@ c---------------------------------------------------------------------
 
       if(up.eq.0.)then
          utau = sqrt(k*sCmu)
-         cospsi = 0.
          return
       else
 c     Initial guesses for utau
@@ -570,17 +557,15 @@ c     Initial guesses for utau
 
          sgncos = 0.0
          do i=1,maxiter
-            f0 = futau(ut0,up,cpsi1,cosphi,u,k,if3d,sgncos,i,maxiter)
-            f1 = futau(ut1,up,cpsi2,cosphi,u,k,if3d,sgncos,i,maxiter)
+            f0 = futau(ut0,up,cosphi,u,k,if3d)
+            f1 = futau(ut1,up,cosphi,u,k,if3d)
 
             if(abs(f1-f0).lt.tol)then
                utau = ut0
-               cospsi = cpsi1
                exit
             else
                utau = ut0 - (ut1-ut0)*f0/(f1-f0)
-               f2 = futau(utau,up,cospsi,cosphi,u,k,
-     $              if3d,sgncos,i,maxiter)
+               f2 = futau(utau,up,cosphi,u,k,if3d)
                ut0 = ut1
                ut1 = utau
                if(abs(f2).lt.tol)then
