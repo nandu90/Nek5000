@@ -202,7 +202,7 @@ c---------------------------------------------------------------------
       
       utau2 = u_k
       utau1 = uw/u1plusc
-      utau = max(utau1,utau2)
+      utau = utau2 !max(utau1,utau2)
             
       tw1 = 0.
       tw2 = 0.
@@ -663,7 +663,7 @@ c     $        -2.*alp*up*kappa*u_k*cosphi)
       
       call finducut(uc,utau1,up,uw,u_k,yplusc,kappa,Ccon,alp,bet,cosphi)
 
-      utau = max(utau1,utau2)
+      utau = utau2 !max(utau1,utau2)
 
 !     Combined velocity scale
       uc = utau+up
@@ -809,7 +809,7 @@ c---------------------------------------------------------------------
       else
 c     Initial guesses for utau
          ut1 = utau 
-         ut0 = ut1 + 1.0 
+         ut0 = ut1 + 0.1 
          
          do i=1,maxiter
             f0 = futau(ut0,up,cosphi,u,k,if3d)
