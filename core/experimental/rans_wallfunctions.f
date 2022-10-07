@@ -149,6 +149,9 @@ c---------------------------------------------------------------------
       
       common /forutau/ kappa,alp,bet,Ccon,yplusc,sCmu
 
+      real cfprint
+      common /cfout/ cfprint(lx1,ly1,lz1,lelv)
+
       integer icalld
       save icalld
       data icalld /0/
@@ -202,7 +205,7 @@ c---------------------------------------------------------------------
       
       utau2 = u_k
       utau1 = uw/u1plusc
-      utau = utau2 !max(utau1,utau2)
+      utau = max(utau1,utau2)
             
       tw1 = 0.
       tw2 = 0.
@@ -216,7 +219,8 @@ c---------------------------------------------------------------------
       factro= 0.5 + visc/veddy 
 
       if(utau.ne.0.)then
-         flux_tau = kappa*ukstar*tauw*factro
+c         flux_tau = kappa*ukstar*tauw*factro
+         flux_tau = kw*tauw*kappa*sCmu*factro/ukstar
       else
          flux_tau = 0.
       endif
@@ -233,6 +237,7 @@ c---------------------------------------------------------------------
          tau = 1./omega
       endif
 
+      cfprint(ix,iy,iz,e) = tw1
       return
       end
 c---------------------------------------------------------------------      
@@ -546,6 +551,9 @@ c---------------------------------------------------------------------
 
       integer method_ut2,i
 
+      real cfprint
+      common /cfout/ cfprint(lx1,ly1,lz1,lelv)
+
       method_ut2 = 1 !tomboulides
       method_ut2 = 2 !saini
       
@@ -663,7 +671,7 @@ c     $        -2.*alp*up*kappa*u_k*cosphi)
       
       call finducut(uc,utau1,up,uw,u_k,yplusc,kappa,Ccon,alp,bet,cosphi)
 
-      utau = utau2 !max(utau1,utau2)
+      utau = max(utau1,utau2)
 
 !     Combined velocity scale
       uc = utau+up
@@ -712,7 +720,12 @@ c     $        -2.*alp*up*kappa*u_k*cosphi)
          factro= 0.5 + visc/veddy 
       endif
 
-      flux_tau = kappa*ukstar*tauw*factro
+      if(ukstar.gt.tol)then
+c         flux_tau = kappa*ukstar*tauw*factro
+         flux_tau = kw*tauw*kappa*sCmu*factro/ukstar
+      else
+         flux_tau = 0.
+      endif
 
       if(tw1.ne.tw1 .or. flux_tau.ne.flux_tau)then
          write(*,*)tw1,flux_tau,utau
@@ -730,6 +743,8 @@ c     $        -2.*alp*up*kappa*u_k*cosphi)
       else
          tau = 1./omega
       endif
+
+      cfprint(ix,iy,iz,e) = (u1t1/u1plusc)*(utau/uc)*utau*dens
       
       return
       end
