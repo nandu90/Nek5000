@@ -19,7 +19,29 @@ c---------------------------------------------------------------------
      $                ,ywdz(lx1,ly1,lz1,lelv),ywdc(lx1,ly1,lz1,lelv)
       real ywdx, ywdy, ywdz, ywdc
 
-      if(wid.ne.0)then
+c     fix corners
+      if (ifstrs) call fixmska1 (v1mask,v2mask,v3mask)
+      call fixcorners('shl','W  ')
+      call fixcorners('shl','A  ')
+      
+c     set cbc array for k and omega/tau
+      do 10 ie = 1,nelv
+      do 10 ifc = 1,2*ndim
+         bcw=cbc(ifc,ie,1)
+         if(bcw.eq.'W  '.or.bcw.eq.'v  ') then
+            cbc(ifc,ie,ifld_k)='t  '
+            cbc(ifc,ie,ifld_omega)='t  '
+         elseif(bcw.eq.'shl') then
+            cbc(ifc,ie,ifld_k)='f  '
+            cbc(ifc,ie,ifld_omega)='f  '
+         elseif(bcw.eq.'SYM'.or.bcw.eq.'O  '
+     $           .or.bcw.eq.'o  ' .or. bcw.eq.'A  ') then
+            cbc(ifc,ie,ifld_k)='I  '
+            cbc(ifc,ie,ifld_omega)='I  '
+         endif
+ 10   continue      
+
+      if(wid.eq.2)then
          call distf2(ywd,1,'shl','W  ',w1,w2,w3,w4,w5)
       endif
 
@@ -149,9 +171,6 @@ c---------------------------------------------------------------------
       
       common /forutau/ kappa,alp,bet,Ccon,yplusc,sCmu
 
-      real cfprint
-      common /cfout/ cfprint(lx1,ly1,lz1,lelv)
-
       integer icalld
       save icalld
       data icalld /0/
@@ -237,268 +256,6 @@ c         flux_tau = kappa*ukstar*tauw*factro
          tau = 1./omega
       endif
 
-      cfprint(ix,iy,iz,e) = tw1
-      return
-      end
-c---------------------------------------------------------------------      
-      subroutine pcorrected_ktau_wf1(ix,iy,iz,iside,e,tw1,
-     $     tw2,tke,tau,flux_tau)
-      implicit none
-      include 'SIZE'
-      include 'TOTAL'
-      include 'NEKUSE'
-
-      integer ix,iy,iz,e,iside
-      real tw1,tw2,tke,flux_tau,tau,omega
-
-      real tsn(3),bsn(3),usn(3)
-      real yplusc,Econ,sCmu,Ccon,kappa
-      real alp,bet,tol,tolmax
-      real visc,dens
-      real kw,tauw,u_k
-
-      common /pgrads/ dpdx(lx1,ly1,lz1,lelt),dpdy(lx1,ly1,lz1,lelt),
-     $     dpdz(lx1,ly1,lz1,lelt)
-      real dpdx,dpdy,dpdz
-      real dpx,dpy,dpz,dpn
-      real dptx,dpty,dptz
-
-      real dpt1,dpt2,dpw,up
-      real unormal,utx,uty,utz,uw,ut1,ut2
-      real vtau(3),vtau1,vtau2,vtauw
-      real cosphi,disc,cospsi
-      real utau,uc
-
-      real Ccon1, Ccon2
-      real u1plusc,u2plusc
-      real u1t1,u1t2,ukstar
-      real veddy,factro
-      real acosf
-
-      real utold(lx1,ly1,lz1,lelv)
-      common /oldu/ utold
-      
-      common /forutau/ kappa,alp,bet,Ccon,yplusc,sCmu
-
-      integer icalld
-      save icalld
-      data icalld /0/
-
-      real utau2D
-
-      real utau1,utau2
-      real ut1uw, ut2uw, uplust
-
-      integer method_ut2,i
-
-      method_ut2 = 1 !tomboulides
-c      method_ut2 = 2 !saini
-      
-      yplusc = 30.0
-      Econ = 9.0
-      kappa = 0.4
-      sCmu = 0.3
-      Ccon = log(Econ)/kappa
-      alp = 5.0
-      bet = 8.0
-      tol = 1.e-6
-      tolmax = 1.e5
-      visc = cpfld(1,1)
-      dens = cpfld(1,2)
-
-      kw       = abs(ps(1))
-      tauw     = abs(ps(2))
-      u_k      = sqrt(sCmu*kw)
-
-      if(icalld.eq.0)then
-         do i=1,lx1*ly1*lz1*nelt
-            utold(i,1,1,1) = sqrt(t(i,1,1,1,2)*sCmu)
-         enddo
-         icalld = 1
-      endif
-
-!     Get the tangent and bi-tangent vectors
-      call getangent   (tsn,ix,iy,iz,iside,e)
-      call getbitangent(bsn,ix,iy,iz,iside,e)
-
-!     Get the surface normal
-      call getSnormal (usn,ix,iy,iz,iside,e)
-
-!     Get the tangent of pressure gradient 
-      dpx = dpdx(ix,iy,iz,e)
-      dpy = dpdy(ix,iy,iz,e)
-      dpz = dpdz(ix,iy,iz,e)
-      if(if3d)then !Pressure normal
-         dpn = dpx*usn(1)+dpy*usn(2)+dpz*usn(3)
-      else
-         dpn = dpx*usn(1)+dpy*usn(2)
-      endif
-      dptx = dpx-dpn*usn(1)
-      dpty = dpy-dpn*usn(2)
-      dptz = dpz-dpn*usn(3)
-
-!     Get the dot product of press tangent with
-!     tangent and bi-tangent vectors
-      dpt1 = tsn(1)*dptx+tsn(2)*dpty
-      dpt2 = 0.0      
-      if(if3d)then
-         dpt1 = dpt1+tsn(3)*dptz
-         dpt2 = bsn(1)*dptx+bsn(2)*dpty+bsn(3)*dptz
-      endif
-      dpw = sqrt(dpt1*dpt1+dpt2*dpt2)
-      if(dpw.gt.tol)then
-         dpt1 = dpt1/dpw
-         dpt2 = dpt2/dpw
-      else
-         dpt1 = 0.
-         dpt2 = 0.
-         dpw = 0.
-      endif
-
-!     Get the pressure velocity scale
-      up = (visc*dpw/dens)**(1./3.)
-      
-!     Get the tangential velocity
-!     Velocity from previous time step should be tangential
-!     Just in case it is not:
-      if(if3d)then
-         unormal = ux*usn(1)+uy*usn(2)+uz*usn(3)
-      else
-         unormal = ux*usn(1)+uy*usn(2)
-      endif
-      utx = ux-unormal*usn(1)
-      uty = uy-unormal*usn(2)
-      utz = uz-unormal*usn(3)
-
-      ut1=tsn(1)*utx+tsn(2)*uty
-      ut2=0.0
-      if(if3d) then
-         ut1=ut1+tsn(3)*utz
-         ut2=bsn(1)*utx+bsn(2)*uty+bsn(3)*utz
-      endif
-      uw=sqrt(ut1*ut1+ut2*ut2)
-      ut1uw    = 0.
-      ut2uw    = 0.
-      if(uw.ne.0.) then
-         ut1uw = ut1/uw
-         ut2uw = ut2/uw
-      endif
-
-!     Get utau
-      if(uw.ne.0.)then
-         cosphi = (dpt1*ut1+dpt2*ut2)/uw
-      else
-         cosphi = sign(1.,dpt1*ut1+dpt2*ut2)
-      endif
-
-      if(.not.if3d)then
-         if(cosphi .gt. 0.0)then
-            cosphi = 1.0
-         else
-            cosphi = -1.0
-         endif
-      endif
-      if(cosphi.gt.1.0)cosphi=1.
-      if(cosphi.lt.-1.)cosphi=-1.
-
-      if(method_ut2.eq.2)then
-         utau2 = utold(ix,iy,iz,e)
-         call newton_utau(utau2,cospsi,up,cosphi,uw,kw,if3d,nid)
-         utold(ix,iy,iz,e) = utau2 
-      elseif(method_ut2.eq.1)then
-c         utau2 = sqrt(u_k**2.+(up*alp*kappa)**2.
-c     $        -2.*alp*up*kappa*u_k*cosphi)
-        if(cosphi.eq. 1.) utau2 = abs(u_k-alp*kappa*up)
-        if(cosphi.eq.-1.) utau2 =     u_k+alp*kappa*up
-      endif
-      
-      call finducut(uc,utau1,up,uw,u_k,yplusc,kappa,Ccon,alp,bet,cosphi)
-
-c        if(cosphi.eq. 1.)  call finducut2(uc,utau1,up,uw,u_k,yplusc,
-c     $                                        kappa,Ccon,alp,bet,cosphi)
-c        if(cosphi.eq.-1.)  call finducut1(uc,utau1,up,uw,u_k,yplusc,
-c     $                                        kappa,Ccon,alp,bet,cosphi)
-
-      utau = max(utau1,utau2)
-
-!     Combined velocity scale
-      uc = utau+up
-
-      Ccon1   = 0.
-      u1plusc = 0.
-      if(utau.ne.0. .and. uc.ne.0.) then
-         Ccon1   = (utau/uc)*(log(utau/uc)/kappa+ Ccon)
-         u1plusc = (utau/uc)* log(  yplusc)/kappa+ Ccon1
-      endif
-      Ccon2   = 0.
-      u2plusc = 0.
-      if(up   .ne.0. .and. uc.ne.0.) then
-         Ccon2   = (up   /uc)*(log(up   /uc)*alp  + bet )
-         u2plusc = (up   /uc)* log(  yplusc)*alp  + Ccon2
-      endif
-
-      uplust = 0.
-      if(utau.ne.0. .and. uc.ne.0.) then
-        uplust = (    (log(yplusc)+log(utau /uc))/kappa+ Ccon)
-      endif
-
-      u1t1 = ut1 - uc*dpt1*u2plusc
-      u1t2 = ut2 - uc*dpt2*u2plusc
-
-      if(utau.eq.utau2) then
-           u1t1 = (ut1uw*u_k - alp*kappa*up*dpt1)*uplust
-           u1t2 = (ut2uw*u_k - alp*kappa*up*dpt2)*uplust
-      endif
-
-      if(sqrt(u1t1*u1t1+u1t2*u1t2).ne.0.)then
-         cospsi = (u1t1*dpt1+u1t2*dpt2)/sqrt(u1t1*u1t1+u1t2*u1t2)
-      else
-         cospsi = sign(1.,u1t1*dpt1+u1t2*dpt2)
-      endif
-      if(cospsi.gt.1.0)cospsi=1.
-      if(cospsi.lt.-1.)cospsi=-1.
-
-      ukstar = utau**2. + (up*alp*kappa)**2.
-     $     + 2.*utau*up*alp*kappa*cospsi
-      ukstar = sqrt(max(0.,ukstar))
-
-      if(utau.eq.utau2) ukstar=u_k
-
-      tw1 = 0.
-      tw2 = 0.
-      if(uc.ne.0. .and. u1plusc .ne.0.)then
-         tw1 = (u1t1/u1plusc)*(utau/uc)*utau*dens
-     $        + up**2.*dpt1*(up/uc)*yplusc
-         if(if3d)tw2 = (u1t2/u1plusc)*(utau/uc)*utau*dens
-     $        + up**2.*dpt2*(up/uc)*yplusc
-      endif
-
-      veddy = kappa*visc*yplusc*ukstar/uc
-      if(veddy.le.tol .or. veddy.ne.veddy) then
-         factro= 0.5
-      else
-         factro= 0.5 + visc/veddy 
-      endif
-
-      flux_tau = kappa*ukstar*tauw*factro
-
-      if(tw1.ne.tw1 .or. flux_tau.ne.flux_tau)then
-         write(*,*)tw1,flux_tau,utau
-         call exit(1)
-      endif
-
-      tke = ukstar**2/sCmu
-      if(veddy.eq.0. .or. veddy.ne.veddy)then
-         omega = 0.0
-      else
-         omega = dens*tke/veddy
-      endif
-      if(omega.lt.1.)then
-         tau = 0.
-      else
-         tau = 1./omega
-      endif
-      
       return
       end
 c---------------------------------------------------------------------
@@ -550,9 +307,6 @@ c---------------------------------------------------------------------
       real utau1,utau2
 
       integer method_ut2,i
-
-      real cfprint
-      common /cfout/ cfprint(lx1,ly1,lz1,lelv)
 
       method_ut2 = 1 !tomboulides
       method_ut2 = 2 !saini
@@ -744,8 +498,6 @@ c         flux_tau = kappa*ukstar*tauw*factro
          tau = 1./omega
       endif
 
-      cfprint(ix,iy,iz,e) = (u1t1/u1plusc)*(utau/uc)*utau*dens
-      
       return
       end
 c---------------------------------------------------------------------
