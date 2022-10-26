@@ -598,10 +598,10 @@ c     Initial guesses for utau
                   exit
                endif
                
-               if(i.ge.maxiter)then
-                  write(*,*)"Newton solver did not converge!",utau,up,f2
-     $                 ,cosphi
-               endif
+c               if(i.ge.maxiter)then
+c                  write(*,*)"Newton solver did not converge!",utau,up,f2
+c     $                 ,cosphi
+c               endif
             endif
          enddo
       endif
@@ -666,8 +666,8 @@ c     $                           , func, fder ,uplust, uplusp, error
         if(iter.ge.niter) then
           utau = 0.
           uc   = 0.
-          write(*,*)'No convergence1 for'
-     $            ,ut,up,uc,utau,func,fder,ucnp1,cosf
+c          write(*,*)'No convergence1 for'
+c     $            ,ut,up,uc,utau,func,fder,ucnp1,cosf
 c             call exitt
           return
         endif
