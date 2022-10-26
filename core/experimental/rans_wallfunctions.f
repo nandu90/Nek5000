@@ -14,6 +14,10 @@ c---------------------------------------------------------------------
      &,w3(lx1*ly1*lz1*lelv)
      &,w4(lx1*ly1*lz1*lelv)
      &,w5(lx1*ly1*lz1*lelv)
+
+      character*3 bcw
+
+      integer ifc,ie
       
       common /gradywd/ ywdx(lx1,ly1,lz1,lelv),ywdy(lx1,ly1,lz1,lelv)
      $                ,ywdz(lx1,ly1,lz1,lelv),ywdc(lx1,ly1,lz1,lelv)

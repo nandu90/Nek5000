@@ -1,9 +1,9 @@
 #Nek5000 parameter file
 [GENERAL]
 #startFrom = chan.old
-numSteps = 50000
-dt = 5.0e-3
-writeInterval = 10000
+numSteps = 20000
+dt = 2.0e-2
+writeInterval = 5000
 
 [PROBLEMTYPE]
 variableProperties = yes
