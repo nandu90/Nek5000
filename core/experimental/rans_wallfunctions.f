@@ -42,6 +42,12 @@ c     set cbc array for k and omega/tau
      $           .or.bcw.eq.'o  ' .or. bcw.eq.'A  ') then
             cbc(ifc,ie,ifld_k)='I  '
             cbc(ifc,ie,ifld_omega)='I  '
+         elseif(bcw.eq.'E  ')then
+            cbc(ifc,ie,ifld_k)='E  '
+            cbc(ifc,ie,ifld_omega)='E  '
+         elseif(bcw.eq.'P  ')then
+            cbc(ifc,ie,ifld_k)='P  '
+            cbc(ifc,ie,ifld_omega)='P  '
          endif
  10   continue      
 
@@ -957,12 +963,8 @@ c     fixes masks for A/shl face corners
          do j=1,ly1,ly1-1
          do i=1,lx1,lx1-1
             if  ( im2(i,j,k) .eq. 2) then  ! corner of shl & 'A  ' faces
-               write(*,*) 'WTF1 changing mask at ', i, j, k, e, lglel(e)
-     $                  , c1mask(i,j,k,e), c1mask(i,j,k,e) 
                c1mask(i,j,k,e) = 0.
                c2mask(i,j,k,e) = 0.
-               write(*,*) 'WTF2 changing mask at ', i, j, k, e, lglel(e)
-     $                  , c1mask(i,j,k,e), c1mask(i,j,k,e) 
             endif
          enddo
          enddo
@@ -1518,7 +1520,6 @@ c     $          ,ut,up,uc,utau,func,fder,ucnp1,cosf
         return
 
  40     continue
-c        write(*,*) 'WTF going to second part!!!!!!!!!!!'
         uc = up + 0.01
  
         do iter = 1,niter
