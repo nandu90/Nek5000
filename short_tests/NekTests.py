@@ -2047,7 +2047,6 @@ class impsrc_scalar(NekTestCase):
 if __name__ == "__main__":
     import unittest
     import argparse
->>>>>>> master
 
     # Get arguments from command line
     parser = argparse.ArgumentParser()
