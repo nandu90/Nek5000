@@ -167,6 +167,8 @@ c-----------------------------------------------------------------------
 
       logical ifbswap, ifread_con
 
+      real tol
+
 #if !defined(PARRSB) && !defined(PARMETIS)
 #if defined(DPROCMAP)
       call exitti('DPROCMAP requires PARRSB or PARMETIS!$',0)
@@ -183,9 +185,13 @@ c-----------------------------------------------------------------------
 
       if (ierr.ne.0) then
         ifread_con = .false.
-        call find_con(wk,nwk,0.2,ierr)
-        if(ierr.ne.0) call find_con(wk,nwk,0.01,ierr)
-        call err_chk(ierr,' findConnectivity failed!$')
+        tol = connectivityTol
+        call find_con(wk,nwk,tol,ierr)
+        if(ierr.ne.0) then
+          tol = tol / 10.0;
+          call find_con(wk,nwk,tol,ierr)
+        endif
+        call err_chk(ierr,' find_con failed!$')
       endif
 
 c fluid elements
@@ -221,10 +227,9 @@ c fluid elements
       enddo
       neliv = j
 
-      algo = 0 ! 0 - Lanczos, 1 - MG
       nel = neliv
       call fpartMesh(eid8,vtx8,xyz,lelt,nel,nlv,nekcomm,
-     $  meshPartitioner,algo,loglevel,ierr)
+     $  meshPartitioner,0,loglevel,ierr)
       call err_chk(ierr,'partMesh fluid failed!$')
 
       nelv = nel
@@ -275,10 +280,9 @@ c solid elements
          enddo
          nelit = j
 
-         algo = 0 ! 0 - Lanczos, 1 - MG
          nel = nelit
          call fpartMesh(eid8,vtx8,xyz,lelt,nel,nlv,nekcomm,
-     $                  meshPartitioner,algo,loglevel,ierr)
+     $                  2,0,loglevel,ierr)
          call err_chk(ierr,'partMesh solid failed!$')
 
          nelt = nelv + nel
@@ -296,6 +300,7 @@ c solid elements
       endif
 
 #ifdef DPROCMAP
+      call dProcMapClearCache()
       do i = 1,nelt
          ieg = lglel(i)
          if (ieg.lt.1 .or. ieg.gt.nelgt) 
@@ -448,6 +453,7 @@ c-----------------------------------------------------------------------
 
       integer nwk,ierr
       integer*8 wk(nwk)
+      real tol
 
       common /nekmpi/ mid,mp,nekcomm,nekgroup,nekreal
       common /scrcg/ xyz(ldim*(2**ldim)*lelt)
@@ -496,8 +502,8 @@ c-----------------------------------------------------------------------
         enddo
       enddo
 
-      call fparrsb_findConnectivity(vtx8,xyz,nelt,ndim,
-     $  eid8,npf,tol,nekcomm,0,ierr)
+      call fparrsb_find_conn(vtx8,xyz,nelt,ndim,eid8,npf,tol,nekcomm,
+     $  0,ierr)
 
       k=1
       l=1
@@ -550,7 +556,6 @@ C
       ! setup gllnid + gllel
 #if defined(DPROCMAP)
       call dProcmapInit()  
-      dProcmapCache = .false.
 #endif
       nelB = igl_running_sum(nelt) - nelt
       do i = 1,nelt
@@ -584,10 +589,6 @@ C
 
       ! get element-proc mapping      
       call get_map() 
-
-      itmp = gllnid(0) ! reset last element cache
-      itmp = gllel(0)  ! reset last element cache
-      dProcmapCache = .true.
 
 #if !defined(DPROCMAP)
       IEL=0

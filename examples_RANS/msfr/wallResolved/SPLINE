@@ -1,0 +1,27 @@
+C--------------------------------------------------
+C  SPLINE INTERPOLATION ARRAYS
+C--------------------------------------------------
+
+C   number of points in the input file containing the 1-D solution
+      integer nptS
+      parameter (npts  =  1001)
+
+C  sb,sc,sd : spline coeficient arrays
+
+      real sbU, scU, sdU, 
+     &     sbK, scK, sdK,
+     &     sbO, scO, sdO,
+     &     fU , fK  ,fO , SYY
+
+      common /splcoef/ sbU(npts), scU(npts), sdU(npts),
+     &                 sbK(npts), scK(npts), sdK(npts),
+     &                 sbO(npts), scO(npts), sdO(npts),
+     &                 fU (npts),  fK(npts), fO(npts), SYY(npts)
+
+      real  ymin,ymax,ymin_turb,ymax_turb
+
+      parameter (ymin         =  0.0)      ! min of DNS domain corresp to ymin_turb
+      parameter (ymax         = 0.235)      ! max of DNS domain corresp to ymax_turb
+
+      parameter (ymin_turb    = 0.0)      ! min of msfr       domain
+      parameter (ymax_turb    = 0.235)      ! max of msfr       domain
