@@ -796,6 +796,59 @@ c      write(*,*) 'element faces from fixmask2'
       return
       end
 c---------------------------------------------------------------------
+      subroutine fixcorners_bid(bid1,bid2)
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+
+      integer bid1,bid2,bid,n,iel,ifc,bidmn,bidmx
+      integer i,i0,i1,j,j0,j1,k,k0,k1
+
+      real w1,w2,term
+      common /scrns/ w1(lx1,ly1,lz1,lelt)
+     &              ,w2(lx1,ly1,lz1,lelt)
+
+      n=lx1*ly1*lz1*nelv
+
+      bidmn=min(bid1,bid2)
+      bidmx=max(bid1,bid2)
+
+      call rzero(w1,n)
+      call rzero(w2,n)
+      do iel = 1, nelv
+      do ifc = 1, 2*ldim
+        bid = BoundaryID(ifc,iel)
+        if(bid.gt.0) then
+          term = bid
+          call cadd_face(ifc,iel,w1,term)
+          call cadd_face(ifc,iel,w2,1.0)
+        endif
+      enddo
+      enddo
+
+      call dssum(w1,lx1,ly1,lz1)
+      call dssum(w2,lx1,ly1,lz1)
+
+      do iel = 1,nelv
+      do ifc = 1,2*ldim
+        bid = BoundaryID(ifc,iel)
+        if(bid.gt.0) then
+          call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
+          do k=k0,k1
+          do j=j0,j1
+          do i=i0,i1
+            term = w1(i,j,k,iel)/w2(i,j,k,iel)
+            if(term.gt.bidmn.and.term.lt.bidmx) cbc(ifc,iel,1)='W  '
+          enddo
+          enddo
+          enddo
+        endif
+      enddo
+      enddo
+
+      return
+      end
+c---------------------------------------------------------------------
       subroutine getangent(st,ix,iy,iz,iside,e)
 
 c     calculate surface normal
