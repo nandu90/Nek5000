@@ -278,6 +278,24 @@ c setup wall distance
         call copy(ywd_in,ywd,n)
       endif
 
+c set cbc array for k and omega/tau (need to revise for wall-functions)
+c     do 10 ie = 1,nelv
+c     do 10 ifc = 1,2*ndim
+c       bcw=cbc(ifc,ie,1)
+c       cbc(ifc,ie,ifld_k)=bcw
+c       cbc(ifc,ie,ifld_omega)=bcw
+c       if(bcw.eq.'W  '.or.bcw.eq.'v  ') then
+c         cbc(ifc,ie,ifld_k)='t  '
+c         cbc(ifc,ie,ifld_omega)='t  '
+c       elseif(bcw.eq.'SYM'.or.bcw.eq.'O  '.or.bcw.eq.'o  ') then
+c         cbc(ifc,ie,ifld_k)='I  '
+c         cbc(ifc,ie,ifld_omega)='I  '
+c       elseif(bcw.eq.'shl') then
+c         cbc(ifc,ie,ifld_k)='f  '
+c         cbc(ifc,ie,ifld_omega)='t  '
+c       endif
+c 10  continue
+
 c solve for omega_wall & setup molecular viscosity
       call rans_komg_omegabase
       call cfill(mul,cpfld(1,1),n)
