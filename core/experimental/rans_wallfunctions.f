@@ -710,7 +710,7 @@ c     fixes masks for SYM face corners
       nxyz1= lx1*ly1*lz1
       ntot1= nxyz1*nelv
       nfaces = 2*ldim
-      tol  = 1.e-02
+      tol  = 1.e-01
 
       call rzero  (rmlt,    ntot1)
       call oprzero(runx,runy,runz)
