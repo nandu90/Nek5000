@@ -97,7 +97,7 @@ C-----------------------------------------------------------------------
       integer wcnt(ldimt1),symcnt(ldimt1),ocnt(ldimt1)
       integer tcnt(ldimt1),fcnt(ldimt1),axicnt(ldimt1)
       integer inscnt(ldimt1),pcnt(ldimt1),othcnt(ldimt1)
-      integer vcnt(ldimt1),trcnt(ldimt1),ukncnt(ldimt1)
+      integer vcnt(ldimt1),vlcnt(ldimt1),trcnt(ldimt1),ukncnt(ldimt1)
       integer mtrcnt(ldimt1),prcnt(ldimt1),intcnt(ldimt1)
       integer vreacnt(ldimt1),treacnt(ldimt1),convcnt(ldimt1)
 
@@ -105,6 +105,7 @@ C-----------------------------------------------------------------------
       call izero(trcnt,ldimt1)
       call izero(mtrcnt,ldimt1)
       call izero(vcnt,ldimt1)
+      call izero(vlcnt,ldimt1)
       call izero(vreacnt,ldimt1)
       call izero(symcnt,ldimt1)
       call izero(ocnt,ldimt1)
@@ -133,6 +134,8 @@ C-----------------------------------------------------------------------
             mtrcnt(ifld)=mtrcnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'v  ')then
             vcnt(ifld)=vcnt(ifld)+1
+          elseif(cbc(iside,ielem,ifld).eq.'vl ')then
+            vlcnt(ifld)=vlcnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'V  ')then
             vreacnt(ifld)=vreacnt(ifld)+1
           elseif(cbc(iside,ielem,ifld).eq.'t  ')then
@@ -173,6 +176,7 @@ c           endif
         trcnt(ifld)=iglsum(trcnt(ifld),1)
         mtrcnt(ifld)=iglsum(mtrcnt(ifld),1)
         vcnt(ifld)=iglsum(vcnt(ifld),1)
+        vlcnt(ifld)=iglsum(vlcnt(ifld),1)
         vreacnt(ifld)=iglsum(vreacnt(ifld),1)
         tcnt(ifld)=iglsum(tcnt(ifld),1)
         treacnt(ifld)=iglsum(treacnt(ifld),1)
@@ -200,6 +204,7 @@ c           endif
           if(mtrcnt(ifld).gt.0)write(*,256)'Mixed Traction'
      &                                                   ,mtrcnt(ifld)
           if(vcnt(ifld).gt.0)write(*,256)'Velocity',vcnt(ifld)
+          if(vlcnt(ifld).gt.0)write(*,256)'Velocity (local)',vlcnt(ifld)
           if(vreacnt(ifld).gt.0)write(*,256)'Velocity (REA)',
      &                                                   vreacnt(ifld)
           if(tcnt(ifld).gt.0)write(*,256)'Dirichlet',tcnt(ifld)
@@ -1053,19 +1058,47 @@ c-----------------------------------------------------------------------
       integer ifld
       real phi(lx1,ly1,lz1,1)
 
-      integer ie,ifc,i,i0,i1,j,j0,j1,k,k0,k1,n
+      integer iel,ifc,i,i0,i1,j,j0,j1,k,k0,k1,n
  
       n=lx1*ly1*lz1*nelv
       call rzero(phi,n)
 
-      do 10 ie=1,nelt
+      do 10 iel=1,nelt
       do 10 ifc=1,ndim*2
-        if(cbc(ifc,ie,ifld).eq.bcc) then
+        if(cbc(ifc,iel,ifld).eq.bcc) then
           call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
           do 20 k=k0,k1
           do 20 j=j0,j1
           do 20 i=i0,i1
-            phi(i,j,k,ie)=1.0
+            phi(i,j,k,iel)=1.0
+ 20       continue
+        endif
+ 10   continue
+ 
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine flag_bid(bid,phi)
+      implicit none
+      include 'SIZE'
+      include 'GEOM'
+
+      integer bid
+      real phi(lx1,ly1,lz1,1)
+
+      integer iel,ifc,i,i0,i1,j,j0,j1,k,k0,k1,n
+ 
+      n=lx1*ly1*lz1*nelv
+      call rzero(phi,n)
+
+      do 10 iel=1,nelt
+      do 10 ifc=1,ndim*2
+        if(BoundaryID(ifc,iel).eq.bid) then
+          call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
+          do 20 k=k0,k1
+          do 20 j=j0,j1
+          do 20 i=i0,i1
+            phi(i,j,k,iel)=1.0
  20       continue
         endif
  10   continue
@@ -1291,6 +1324,54 @@ c-----------------------------------------------------------------------
       enddo
 
       call prepost (.true.,'msh')
+
+      ifxyo = ifxyo_s
+      ifpo = ifpo_s
+      ifvo = ifvo_s
+      ifto = ifto_s
+      do i=1,ldimt1
+        ifpsco(i)=ifpsco_s(i)
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine dumpscalars(nsca)
+
+      implicit none
+
+      include 'SIZE'
+      include 'TOTAL'
+
+      logical ifxyo_s,ifpo_s,ifvo_s,ifto_s,ifpsco_s(ldimt1)
+
+      integer i,nsca
+
+      ifxyo_s = ifxyo
+      ifpo_s = ifpo
+      ifvo_s = ifvo
+      ifto_s = ifto
+      do i=1,ldimt1
+        ifpsco_s(i)=ifpsco(i)
+      enddo
+
+      ifxyo=.true.
+      ifpo=.false.
+      ifvo=.false.
+      ifto=.false.
+      do i=1,ldimt1
+        ifpsco(i)=.false.
+      enddo
+
+      if(nsca.ge.1) ifto=.true.
+      do i=1,nsca-1
+        ifpsco(i)=.true.
+      enddo
+      do i=nsca,ldimt1
+        ifpsco(i)=.false.
+      enddo
+
+      call prepost (.true.,'sca')
 
       ifxyo = ifxyo_s
       ifpo = ifpo_s
@@ -1562,6 +1643,64 @@ c-----------------------------------------------------------------------
         vx(i,1,1,1)=ur
         vy(i,1,1,1)=ut
       enddo
+
+      return
+      end
+C-----------------------------------------------------------------------
+      subroutine cfill_face(ifc,iel,phi,cc)
+      implicit none
+      include 'SIZE'
+
+      integer ifc,iel
+      real cc, phi(lx1,ly1,lz1,*)
+
+      integer i0,i1,j0,j1,k0,k1,i,j,k
+
+      call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
+      do 100 k=k0,k1
+      do 100 j=j0,j1
+      do 100 i=i0,i1
+        phi(i,j,k,iel) = cc
+ 100  continue
+
+      return
+      end
+C-----------------------------------------------------------------------
+      subroutine cfill_rface(ifc,iel,phi,cc)
+      implicit none
+      include 'SIZE'
+
+      integer ifc,iel
+      real cc, phi(lx1,ly1,lz1,*)
+
+      integer i0,i1,j0,j1,k0,k1,i,j,k
+
+      call facindr(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
+      do 100 k=k0,k1
+      do 100 j=j0,j1
+      do 100 i=i0,i1
+        phi(i,j,k,iel) = cc
+ 100  continue
+
+      return
+      end
+C-----------------------------------------------------------------------
+      subroutine cadd_face(ifc,iel,phi,cc)
+      implicit none
+      include 'SIZE'
+
+      integer ifc,iel
+      real cc, phi(lx1,ly1,lz1,*),ph0
+
+      integer i0,i1,j0,j1,k0,k1,i,j,k
+
+      call facind(i0,i1,j0,j1,k0,k1,lx1,ly1,lz1,ifc)
+      do 100 k=k0,k1
+      do 100 j=j0,j1
+      do 100 i=i0,i1
+        ph0 = phi(i,j,k,iel)
+        phi(i,j,k,iel) = ph0+cc
+ 100  continue
 
       return
       end
