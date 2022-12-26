@@ -84,6 +84,15 @@ c---------------------------------------------------------------------
 
       logical ifpwf
 
+      integer icalld
+      save icalld
+      data icalld /0/
+
+      if(icalld.eq.0)then
+         icalld = 1
+         call init_wf_param
+      endif
+      
       cbv3 = cbc(iside,e,1)
       cbt3 = cbc(iside,e,2)
       cbk3 = cbc(iside,e,3)
@@ -153,47 +162,20 @@ c---------------------------------------------------------------------
       real tw1,tw2,tau,flux_tau
 
       real tsn(3),bsn(3),usn(3)
-      real yplusc,Econ,sCmu,Ccon,kappa
-      real alp,bet,tol,tolmax
+      real tol,tolmax
       real visc,dens
       real kw,tauw,u_k,tke,omega
-
-      common /pgrads/ dpdx(lx1,ly1,lz1,lelt),dpdy(lx1,ly1,lz1,lelt),
-     $     dpdz(lx1,ly1,lz1,lelt)
-      real dpdx,dpdy,dpdz
-      real dpx,dpy,dpz,dpn
-      real dptx,dpty,dptz
-
-      real dpt1,dpt2,dpw,up
-      real unormal,utx,uty,utz,uw,ut1,ut2
-      real vtau(3),vtau1,vtau2,vtauw
-      real cosphi,disc,cospsi
-      real utau,uc
-
-      real Ccon1, Ccon2
-      real u1plusc,u2plusc
-      real u1t1,u1t2,ukstar
-      real veddy,factro
-      real acosf
-
-      real utold(lx1,ly1,lz1,lelv),cpsiold(lx1,ly1,lz1,lelv)
-      common /oldu/ utold,cpsiold
       
-      common /forutau/ kappa,alp,bet,Ccon,yplusc,sCmu
+      real unormal,utx,uty,utz,uw,ut1,ut2
+      real utau,utau1,utau2
 
-      integer icalld
-      save icalld
-      data icalld /0/
+      real ukstar,veddy,factro,u1plusc
+            
+      real yplusc, Econ, kappa, sCmu, Ccon, alp, bet
+      common /wfparam/ yplusc, Econ, kappa, sCmu, Ccon, alp, bet
 
-      real utau1,utau2
-
-      yplusc = 30.0
-      Econ = 9.0
-      kappa = 0.4
-      sCmu = 0.3
-      Ccon = log(Econ)/kappa
-      alp = 5.0
-      bet = 8.0
+      real velx,vely,velz
+      
       tol = 1.e-6
       tolmax = 1.e5
       visc = cpfld(1,1)
@@ -213,14 +195,17 @@ c---------------------------------------------------------------------
 !     Get the tangential velocity
 !     Velocity from previous time step should be tangential
 !     Just in case it is not:
+      velx = vx(ix,iy,iz,e)
+      vely = vy(ix,iy,iz,e)
+      velz = vz(ix,iy,iz,e)
       if(if3d)then
-         unormal = ux*usn(1)+uy*usn(2)+uz*usn(3)
+         unormal = velx*usn(1)+vely*usn(2)+velz*usn(3)
       else
-         unormal = ux*usn(1)+uy*usn(2)
+         unormal = velx*usn(1)+vely*usn(2)
       endif
-      utx = ux-unormal*usn(1)
-      uty = uy-unormal*usn(2)
-      utz = uz-unormal*usn(3)
+      utx = velx-unormal*usn(1)
+      uty = vely-unormal*usn(2)
+      utz = velz-unormal*usn(3)
 
       ut1=tsn(1)*utx+tsn(2)*uty
       ut2=0.0
@@ -247,7 +232,7 @@ c---------------------------------------------------------------------
       veddy = kappa*visc*yplusc !*ukstar/uc
       factro= 0.5 + visc/veddy 
 
-      if(utau.ne.0.)then
+      if(ukstar.ne.0.)then
 c         flux_tau = kappa*ukstar*tauw*factro
          flux_tau = kw*tauw*kappa*sCmu*factro/ukstar
       else
@@ -280,8 +265,7 @@ c---------------------------------------------------------------------
       real tw1,tw2,tke,flux_tau,tau,omega
 
       real tsn(3),bsn(3),usn(3)
-      real yplusc,Econ,sCmu,Ccon,kappa
-      real alp,bet,tol,tolmax
+      real tol,tolmax
       real visc,dens
       real kw,tauw,u_k
 
@@ -291,43 +275,34 @@ c---------------------------------------------------------------------
       real dpx,dpy,dpz,dpn
       real dptx,dpty,dptz
 
-      real dpt1,dpt2,dpw,up
+      real dpt1,dpt2,dpw,up,up3,ut3
       real unormal,utx,uty,utz,uw,ut1,ut2
-      real vtau(3),vtau1,vtau2,vtauw
-      real cosphi,disc,cospsi
+      real cosphi,cospsi
       real utau,uc
 
       real Ccon1, Ccon2
       real u1plusc,u2plusc
       real u1t1,u1t2,ukstar
       real veddy,factro
-      real acosf
 
+      real utau1,utau2
+      real velx,vely,velz
+      
+      integer method_ut2,i
+            
       real utold(lx1,ly1,lz1,lelv)
       common /oldu/ utold
-      
-      common /forutau/ kappa,alp,bet,Ccon,yplusc,sCmu
 
+      real yplusc, Econ, kappa, sCmu, Ccon, alp, bet
+      common /wfparam/ yplusc, Econ, kappa, sCmu, Ccon, alp, bet
+      
       integer icalld
       save icalld
       data icalld /0/
 
-      real utau2D
-
-      real utau1,utau2
-
-      integer method_ut2,i
-
       method_ut2 = 1 !tomboulides
       method_ut2 = 2 !saini
       
-      yplusc = 30.0
-      Econ = 9.0
-      kappa = 0.4
-      sCmu = 0.3
-      Ccon = log(Econ)/kappa
-      alp = 5.0
-      bet = 8.0
       tol = 1.e-6
       tolmax = 1.e5
       visc = cpfld(1,1)
@@ -383,20 +358,32 @@ c---------------------------------------------------------------------
       endif
 
 !     Get the pressure velocity scale
-      up = (visc*dpw/dens)**(1./3.)
+      up3 = visc*dpw/dens
+      ut3 = utold(ix,iy,iz,e)**3.0
+      if(up3/ut3 .gt. 0.001)then
+         up = up3**(1./3.)
+      else
+         up = 0.0
+         dpt1 = 0.0
+         dpt2 = 0.0
+         dpw = 0.0
+      endif
       
 !     Get the tangential velocity
 !     Velocity from previous time step should be tangential
 !     Just in case it is not:
+      velx = vx(ix,iy,iz,e)
+      vely = vy(ix,iy,iz,e)
+      velz = vz(ix,iy,iz,e)
       if(if3d)then
-         unormal = ux*usn(1)+uy*usn(2)+uz*usn(3)
+         unormal = velx*usn(1)+vely*usn(2)+velz*usn(3)
       else
-         unormal = ux*usn(1)+uy*usn(2)
+         unormal = velx*usn(1)+vely*usn(2)
       endif
-      utx = ux-unormal*usn(1)
-      uty = uy-unormal*usn(2)
-      utz = uz-unormal*usn(3)
-
+      utx = velx-unormal*usn(1)
+      uty = vely-unormal*usn(2)
+      utz = velz-unormal*usn(3)
+      
       ut1=tsn(1)*utx+tsn(2)*uty
       ut2=0.0
       if(if3d) then
@@ -427,10 +414,10 @@ c---------------------------------------------------------------------
          call newton_utau(utau2,up,cosphi,uw,kw,if3d,nid)
          utold(ix,iy,iz,e) = utau2 
       elseif(method_ut2.eq.1)then
-c         utau2 = sqrt(u_k**2.+(up*alp*kappa)**2.
-c     $        -2.*alp*up*kappa*u_k*cosphi)
-        if(cosphi.eq. 1.) utau2 = abs(u_k-alp*kappa*up)
-        if(cosphi.eq.-1.) utau2 =     u_k+alp*kappa*up
+         utau2 = sqrt(u_k**2.+(up*alp*kappa)**2.
+     $        -2.*alp*up*kappa*u_k*cosphi)
+c        if(cosphi.eq. 1.) utau2 = abs(u_k-alp*kappa*up)
+c        if(cosphi.eq.-1.) utau2 =     u_k+alp*kappa*up
       endif
       
       call finducut(uc,utau1,up,uw,u_k,yplusc,kappa,Ccon,alp,bet,cosphi)
@@ -517,13 +504,13 @@ c---------------------------------------------------------------------
       real utau,up,cosphi,u,k
       
       logical if3d
-      
-      real kappa,alp,bet,Ccon,yplusc,sCmu
-      common /forutau/ kappa,alp,bet,Ccon,yplusc,sCmu
-
+            
       real Ccon1,Ccon2
       real u1plusc, u2plusc
       real uc,cospsi,llim
+
+      real yplusc, Econ, kappa, sCmu, Ccon, alp, bet
+      common /wfparam/ yplusc, Econ, kappa, sCmu, Ccon, alp, bet
       
 !     The lower limit of utau is known
 !     Close to zero value would also work
@@ -564,10 +551,7 @@ c---------------------------------------------------------------------
       real utau,cospsi,up,cosphi,u,k
 
       logical if3d
-
-      real kappa,alp,bet,Ccon,yplusc,sCmu
-      common /forutau/ kappa,alp,bet,Ccon,yplusc,sCmu
-
+     
       real tol
       integer  maxiter,i,nid
 
@@ -577,6 +561,9 @@ c---------------------------------------------------------------------
       real ut0,ut1,futau
       real cpsi1,cpsi2,sgncos
 
+      real yplusc, Econ, kappa, sCmu, Ccon, alp, bet
+      common /wfparam/ yplusc, Econ, kappa, sCmu, Ccon, alp, bet
+      
       tol = 1e-8
       maxiter = 20
 
@@ -603,11 +590,6 @@ c     Initial guesses for utau
                if(abs(f2).lt.tol)then
                   exit
                endif
-               
-c               if(i.ge.maxiter)then
-c                  write(*,*)"Newton solver did not converge!",utau,up,f2
-c     $                 ,cosphi
-c               endif
             endif
          enddo
       endif
@@ -782,8 +764,8 @@ c      write(*,*) 'element faces from fixmask2'
                t2mag = sqrt(rt2xs*rt2xs+rt2ys*rt2ys+rt2zs*rt2zs)
 
                if((1.0-abs(unmag)).ge.tol) then
-                 write(*,'(4(1X,A),3I5,2(2X,G14.7))') 'converting BC '
-     $            ,cb, ' to ','W  ', ieg, iface, ia, unmag, amul
+c                 write(*,'(4(1X,A),3I5,2(2X,G14.7))') 'converting BC '
+c     $            ,cb, ' to ','W  ', ieg, iface, ia, unmag, amul
 
                  cbc(iface,iel,1) = 'W  '
                endif
@@ -1695,3 +1677,35 @@ c     $                         , uplust, uplusp, error
       end
 
 c-----------------------------------------------------------------------
+      subroutine getpgrads
+      include 'SIZE'
+      include 'TOTAL'
+
+      common /pgrads/ dpdx(lx1,ly1,lz1,lelt),dpdy(lx1,ly1,lz1,lelt),
+     $     dpdz(lx1,ly1,lz1,lelt)
+      real dpdx,dpdy,dpdz
+      
+      call gradm1(dpdx,dpdy,dpdz,pr)
+      call opcolv(dpdx,dpdy,dpdz,bm1)
+      call opdssum(dpdx,dpdy,dpdz)
+      call opcolv(dpdx,dpdy,dpdz,binvm1)
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine init_wf_param
+      implicit none
+      
+      real yplusc, Econ, kappa, sCmu, Ccon, alp, bet
+      common /wfparam/ yplusc, Econ, kappa, sCmu, Ccon, alp, bet
+
+      yplusc = 30.0
+      Econ = 9.0
+      kappa = 0.4
+      sCmu = 0.3
+      Ccon = log(Econ)/kappa
+      alp = 5.0
+      bet = 8.0
+
+      return
+      end
