@@ -1,4 +1,5 @@
-C
+#define RANSMODELID uparam(1)
+C     
 C  USER SPECIFIED ROUTINES: 
 C
 C     - boundary conditions 
@@ -171,9 +172,7 @@ c-----------------------------------------------------------------------
 
       param(54) =-1
       param(55) = 1.0
-
-      param(120) = nsteps
-
+      
       return
       end
 c-----------------------------------------------------------------------
@@ -199,11 +198,12 @@ c-----------------------------------------------------------------------
       ifcoeffs=.false. !set to true to pass your own coeffs
 
 C     Supported models:
+      m_id = RANSMODELID
 c      m_id = 0 !regularized standard k-omega (no wall functions)
 c      m_id = 1 !regularized low-Re k-omega (no wall functions)
 c      m_id = 2 !regularized standard k-omega SST (no wall functions)
 c      m_id = 3 !non-regularized standard k-omega (wall functions)
-      m_id = 4                  !non-regularized standard k-tau
+c      m_id = 4                  !non-regularized standard k-tau
 c      m_id = 5 !non-regularized low Re k-tau 
 c      m_id = 6 !non-regularized standard k-tau SST
 
