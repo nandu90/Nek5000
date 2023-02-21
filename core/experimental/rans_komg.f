@@ -1626,9 +1626,10 @@ c          endif
 
 c approach based on known wall tau behavior to approximate S_tau
           cr_tau  = beta*yw*yw*rho/6./mul(i,1,1,e)
+          cr_edd = 4.4 * mul(i,1,1,e)
           S_taun= 0.
           Scoefn = 0.
-          if(tau.le.cr_tau) then
+          if(mu_t .lt. cr_edd) then
            Scoefn = 0.
            if(yw.gt.0.) Scoefn = (12./beta)*(mul(i,1,1,e)/rho/yw)**2
           else
