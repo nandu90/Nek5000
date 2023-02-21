@@ -1,0 +1,36 @@
+#Nek5000 parameter file
+[GENERAL]
+stopAt = endTime
+endTime = 50
+dt = 5.e-3
+writeControl = runTime
+writeInterval = 50
+
+[PROBLEMTYPE]
+variableProperties = yes
+stressFormulation = yes
+
+[PRESSURE]
+residualTol = 1.0e-5
+#residualProj = yes
+
+[VELOCITY]
+density = 1.0
+viscosity = -125000.0
+residualTol = 1.0e-6
+
+[TEMPERATURE]
+solver = none
+rhoCp = 1.0
+conductivity = -125000.0
+residualTol = 1.0e-8
+
+[SCALAR01]
+density = 1.0
+diffusivity = -125000.0
+residualTol = 1.0e-6
+
+[SCALAR02]
+density = 1.0
+diffusivity = -125000.0
+residualTol = 1.0e-6
