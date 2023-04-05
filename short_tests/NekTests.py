@@ -2064,9 +2064,11 @@ class RANSChannel(NekTestCase):
         self.run_nek(step_limit=None)
 
         xerr = self.get_value_from_log("u_tau", column=-1, row=-1)
-        
+        dnsval = 4.1487e-2
+        relerr = abs(xerr-dnsval)/dnsval
+
         self.assertAlmostEqualDelayed(
-            xerr, target_val=4.1487e-2, delta=1e-02, label="u_tau"
+            relerr, target_val=0.0, delta=6e-03, label="u_tau"
         )
 
         self.assertDelayedFailures()
@@ -2080,9 +2082,11 @@ class RANSChannel(NekTestCase):
         self.run_nek(step_limit=None)
 
         xerr = self.get_value_from_log("u_tau", column=-1, row=-1)
-        
+        dnsval = 4.1487e-2
+        relerr = abs(xerr-dnsval)/dnsval
+
         self.assertAlmostEqualDelayed(
-            xerr, target_val=4.1487e-2, delta=1e-02, label="u_tau"
+            relerr, target_val=0.0, delta=6e-03, label="u_tau"
         )
 
         self.assertDelayedFailures()
