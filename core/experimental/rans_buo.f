@@ -571,6 +571,7 @@ c--------------------------------------------------------------
 
       Pr_t = coeffs(1)
       
+
       call local_grad2(uxr,uxs,vx,lx1-1,ie,dxm1,dytm1)
       call local_grad2(uyr,uys,vy,lx1-1,ie,dxm1,dytm1)
 
@@ -601,12 +602,6 @@ c--------------------------------------------------------------
           do j=1,2
             s_ij(i,j) = s_ij(i,j)+cpfld(2,1)
           enddo
-          ! call cmult(s_ij(i,1),mu_t/Pr_t,3)
-          ! call cadd(s_ij(i,1),cpfld(ifield,1),3)
-
-          ! s_ij(i,1) = cpfld(ifield,1)+mu_t/Pr_t
-          ! s_ij(i,2) = cpfld(ifield,1)+mu_t/Pr_t
-          ! s_ij(i,3) = 0.0 
         endif
       enddo
       return
