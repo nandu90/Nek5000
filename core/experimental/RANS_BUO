@@ -12,3 +12,6 @@
 
       real ksrc_buo,kdiag_buo,omgsrc_buo,omgdiag_buo
       real tx_buo,ty_buo,tz_buo,buo_gvec
+
+      common /gmfact_store/ gms(lx1*ly1*lz1,lelt,6)
+      real gms
