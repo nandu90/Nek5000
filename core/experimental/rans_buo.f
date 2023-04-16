@@ -220,8 +220,9 @@ c--------------------------------------------------------------
       endif
 
       if(ifield.eq.3)then
-        ! Evaluate temp gradient once per time step
+        ! Evaluate vel and temp gradient once per time step
         call eval_tgrad
+        if(ifggdh) call eval_vgrad
       endif
 
       do e=1,nelv
@@ -311,8 +312,9 @@ c--------------------------------------------------------------
       endif
 
       if(ifield.eq.3)then
-        ! Evaluate temp gradient once per time step
+        ! Evaluate vel and temp gradient once per time step
         call eval_tgrad
+        if(ifggdh) call eval_vgrad
       endif
 
       do e=1,nelv
@@ -394,36 +396,19 @@ c--------------------------------------------------------------
       return
       end
 c--------------------------------------------------------------      
-      subroutine eval_sij
-      implicit none
-      include 'SIZE'
-      include 'TOTAL'
-      include 'RANS_BUO'
-
-      common /sijoij/    sij  (lx1*ly1*lz1,6,lelv)
-     $                , oij  (lx1*ly1*lz1,lelv,3)
-      real sij, oij
-     
-      real nij
-
-      nij = 3
-      if (if3d.or.ifaxis) nij=6
-
-      call comp_sij_oij(sij, oij, nij, vx, vy, vz, .false., .true.) 
-
-      return
-      end
-c--------------------------------------------------------------      
       subroutine flux_ggdh_compute(xflux,yflux,zflux,ie)
       implicit none
       include 'SIZE'
       include 'TOTAL'
       include 'RANS_KOMG'
       include 'RANS_BUO'
-
-      common /sijoij/    sij  (lx1*ly1*lz1,6,lelv)
-     $                , oij  (lx1*ly1*lz1,lelv,3)
-      real sij, oij
+      
+      common /scruz/ u_x (lx1,ly1,lz1,lelv),u_y (lx1,ly1,lz1,lelv)
+     $              ,u_z (lx1,ly1,lz1,lelv),v_x (lx1,ly1,lz1,lelv)
+     $              ,v_y (lx1,ly1,lz1,lelv),v_z (lx1,ly1,lz1,lelv)
+     $              ,w_x (lx1,ly1,lz1,lelv),w_y (lx1,ly1,lz1,lelv)
+     $              ,w_z (lx1,ly1,lz1,lelv)
+      real u_x,u_y,u_z,v_x,v_y,v_z,w_x,w_y,w_z
 
       integer lxyz
       parameter(lxyz=lx1*ly1*lz1)
@@ -446,12 +431,12 @@ c--------------------------------------------------------------
         gty = ty_buo(i,1,1,ie)
         gtz = tz_buo(i,1,1,ie)
         if(if3d)then
-          s11 = (2./3.)*rho - mu_t0*sij(i,1,ie)
-          s22 = (2./3.)*rho - mu_t0*sij(i,2,ie)
-          s33 = (2./3.)*rho - mu_t0*sij(i,3,ie)
-          s12 = -mu_t0*sij(i,4,ie)
-          s23 = -mu_t0*sij(i,5,ie)
-          s13 = -mu_t0*sij(i,6,ie)
+          s11 = (2./3.)*rho - mu_t0*2.0*u_x(i,1,1,ie)
+          s22 = (2./3.)*rho - mu_t0*2.0*v_y(i,1,1,ie)
+          s33 = (2./3.)*rho - mu_t0*2.0*w_z(i,1,1,ie)
+          s12 = -mu_t0*(u_y(i,1,1,ie)+v_x(i,1,1,ie))
+          s23 = -mu_t0*(w_y(i,1,1,ie)+v_z(i,1,1,ie))
+          s13 = -mu_t0*(u_z(i,1,1,ie)+w_x(i,1,1,ie))
           xflux(i) = s11*gtx+s12*gty+s13*gtz
           yflux(i) = s12*gtx+s22*gty+s23*gtz
           zflux(i) = s13*gtx+s23*gty+s33*gtz
@@ -461,9 +446,9 @@ c--------------------------------------------------------------
           endif
           call exitt
         else
-          s11 = (2./3.)*rho - mu_t0*sij(i,1,ie)
-          s22 = (2./3.)*rho - mu_t0*sij(i,2,ie)
-          s12 = -mu_t0*sij(i,3,ie)
+          s11 = (2./3.)*rho - mu_t0*2.0*u_x(i,1,1,ie)
+          s22 = (2./3.)*rho - mu_t0*2.0*v_y(i,1,1,ie)
+          s12 = -mu_t0*(u_y(i,1,1,ie)+v_x(i,1,1,ie))
           xflux(i) = s11*gtx+s12*gty
           yflux(i) = s12*gtx+s22*gty
         endif
@@ -576,12 +561,19 @@ c--------------------------------------------------------------
      $                , oij  (lx1*ly1*lz1,lelv,3)
       real sij, oij
 
-      integer ie,i
+      integer ie,i,j
 
       real Pr_t,mu_t0,rho,rans_mut
 
+      real uxr,uxs,uyr,uys
+      common /utmp1/ uxr(lxyz),uxs(lxyz),
+     $               uyr(lxyz),uys(lxyz)  
+
       Pr_t = coeffs(1)
       
+      call local_grad2(uxr,uxs,vx,lx1-1,ie,dxm1,dytm1)
+      call local_grad2(uyr,uys,vy,lx1-1,ie,dxm1,dytm1)
+
       do i=1,lxyz
         mu_t = rans_mut(i,1,1,ie)
         rho = vtrans(i,1,1,ie,1)
@@ -600,15 +592,21 @@ c--------------------------------------------------------------
           ! call cadd(s_ij,cpfld(ifield,1),6)
           continue
         else
-          ! s_ij(i,1) = (2./3.)*rho - mu_t0*sij(i,1,ie)
-          ! s_ij(i,2) = (2./3.)*rho - mu_t0*sij(i,2,ie)
-          ! s_ij(i,3) = -mu_t0*sij(i,3,ie)
+          s_ij(i,1) = (2./3.)*rho - mu_t0*2.0*uxr(i)
+          s_ij(i,2) = (2./3.)*rho - mu_t0*2.0*uys(i)
+          s_ij(i,3) = -mu_t0*(uxs(i)+uyr(i))
+          do j=1,3
+            s_ij(i,j) = s_ij(i,j)*mu_t*0.3
+          enddo
+          do j=1,2
+            s_ij(i,j) = s_ij(i,j)+cpfld(2,1)
+          enddo
           ! call cmult(s_ij(i,1),mu_t/Pr_t,3)
           ! call cadd(s_ij(i,1),cpfld(ifield,1),3)
 
-          s_ij(i,1) = cpfld(ifield,1)+mu_t/Pr_t
-          s_ij(i,2) = cpfld(ifield,1)+mu_t/Pr_t
-          s_ij(i,3) = cpfld(ifield,1)+mu_t/Pr_t
+          ! s_ij(i,1) = cpfld(ifield,1)+mu_t/Pr_t
+          ! s_ij(i,2) = cpfld(ifield,1)+mu_t/Pr_t
+          ! s_ij(i,3) = 0.0 
         endif
       enddo
       return
@@ -648,7 +646,6 @@ c--------------------------------------------------------------
             icalld = 1
           endif
           !apply geom factors for temperature
-          call eval_sij
           call compute_ggdh_geom
           ! continue
         elseif(ifield.eq.3)then
@@ -657,5 +654,36 @@ c--------------------------------------------------------------
         endif
       endif
 
+      return
+      end
+c--------------------------------------------------------------      
+      subroutine eval_vgrad
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+
+      real u_x,u_y,u_z,v_x,v_y,v_z,w_x,w_y,w_z
+      common /scruz/ u_x (lx1,ly1,lz1,lelv),u_y (lx1,ly1,lz1,lelv)
+     $              ,u_z (lx1,ly1,lz1,lelv),v_x (lx1,ly1,lz1,lelv)
+     $              ,v_y (lx1,ly1,lz1,lelv),v_z (lx1,ly1,lz1,lelv)
+     $              ,w_x (lx1,ly1,lz1,lelv),w_y (lx1,ly1,lz1,lelv)
+     $              ,w_z (lx1,ly1,lz1,lelv)
+
+
+      call gradm1  (u_x, u_y, u_z, vx)
+      call gradm1  (v_x, v_y, v_z, vy)
+      if(if3d) call gradm1  (w_x, w_y, w_z, vz)
+
+      call opcolv  (u_x, u_y, u_z,bm1)
+      call opcolv  (v_x, v_y, v_z,bm1)
+      if(if3d) call opcolv  (w_x, w_y, w_z,bm1)
+
+      call opdssum (u_x, u_y, u_z)
+      call opdssum (v_x, v_y, v_z)
+      if(if3d) call opdssum (w_x, w_y, w_z)
+
+      call opcolv  (u_x, u_y, u_z,binvm1)
+      call opcolv  (v_x, v_y, v_z,binvm1)
+      if(if3d) call opcolv  (w_x, w_y, w_z,binvm1)
       return
       end
