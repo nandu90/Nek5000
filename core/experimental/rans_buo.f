@@ -521,13 +521,13 @@ c--------------------------------------------------------------
         icalld = 1
       endif
 
-      ntot=lxyz*nelt
+      ntot=lxyz*lelt
 
       call rzero(grs,ntot*6)
 
       do ie=1,nelt
         call compute_aniso_tensor(s_ij,ie)
-        do ii=1,2
+        do ii=1,3
           ir1 = ir1_2d(ii)
           ir2 = ir2_2d(ii)
           i2 = ii
@@ -540,6 +540,12 @@ c--------------------------------------------------------------
             enddo
           enddo
         enddo
+      enddo
+
+      do ii=1,6
+        call col2(grs(1,1,ii),bm1,ntot)
+        call dssum(grs(1,1,ii),lx1,ly1,lz1)
+        call col2(grs(1,1,ii),binvm1,ntot)
       enddo
 
       return
@@ -632,7 +638,7 @@ c--------------------------------------------------------------
       data icalld /0/
 
       nxyz = lx1*ly1*lz1
-      ntot = nxyz*nelt
+      ntot = nxyz*lelt
 
       if(ifggdh)then
         if(ifield.eq.2)then
