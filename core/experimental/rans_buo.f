@@ -20,12 +20,6 @@ c--------------------------------------------------------------
         call exitt
       endif
 
-      ! if(.not.ifsgdh .or. ifggdh)then
-      !   if(nid.eq.0)write(6,*)
-      ! &   "ERROR: Only SGDH supported for now"
-      !   call exitt
-      ! endif
-
       if(.not.ifrans_ktau_stndrd .and.
      &   .not.ifrans_komg_stndrd)then
         if(nid.eq.0)then
@@ -222,7 +216,7 @@ c--------------------------------------------------------------
       if(ifield.eq.3)then
         ! Evaluate vel and temp gradient once per time step
         call eval_tgrad
-        if(ifggdh) call eval_vgrad
+        if(ifggdh) call comp_sij
       endif
 
       do e=1,nelv
@@ -314,7 +308,7 @@ c--------------------------------------------------------------
       if(ifield.eq.3)then
         ! Evaluate vel and temp gradient once per time step
         call eval_tgrad
-        if(ifggdh) call eval_vgrad
+        if(ifggdh) call comp_sij
       endif
 
       do e=1,nelv
@@ -431,12 +425,12 @@ c--------------------------------------------------------------
         gty = ty_buo(i,1,1,ie)
         gtz = tz_buo(i,1,1,ie)
         if(if3d)then
-          s11 = (2./3.)*rho - mu_t0*2.0*u_x(i,1,1,ie)
-          s22 = (2./3.)*rho - mu_t0*2.0*v_y(i,1,1,ie)
-          s33 = (2./3.)*rho - mu_t0*2.0*w_z(i,1,1,ie)
-          s12 = -mu_t0*(u_y(i,1,1,ie)+v_x(i,1,1,ie))
-          s23 = -mu_t0*(w_y(i,1,1,ie)+v_z(i,1,1,ie))
-          s13 = -mu_t0*(u_z(i,1,1,ie)+w_x(i,1,1,ie))
+          s11 = (2./3.)*rho - mu_t0*sij(i,ie,1)
+          s22 = (2./3.)*rho - mu_t0*sij(i,ie,2)
+          s33 = (2./3.)*rho - mu_t0*sij(i,ie,3)
+          s12 = -mu_t0*sij(i,ie,4)
+          s23 = -mu_t0*sij(i,ie,5)
+          s13 = -mu_t0*sij(i,ie,6)
           xflux(i) = s11*gtx+s12*gty+s13*gtz
           yflux(i) = s12*gtx+s22*gty+s23*gtz
           zflux(i) = s13*gtx+s23*gty+s33*gtz
@@ -446,9 +440,9 @@ c--------------------------------------------------------------
           endif
           call exitt
         else
-          s11 = (2./3.)*rho - mu_t0*2.0*u_x(i,1,1,ie)
-          s22 = (2./3.)*rho - mu_t0*2.0*v_y(i,1,1,ie)
-          s12 = -mu_t0*(u_y(i,1,1,ie)+v_x(i,1,1,ie))
+          s11 = (2./3.)*rho - mu_t0*sij(i,ie,1)
+          s22 = (2./3.)*rho - mu_t0*sij(i,ie,2)
+          s12 = -mu_t0*sij(i,ie,3)
           xflux(i) = s11*gtx+s12*gty
           yflux(i) = s12*gtx+s22*gty
         endif
@@ -466,9 +460,10 @@ c--------------------------------------------------------------
       integer nxyz,ntot
 
       nxyz = lx1*ly1*lz1
-      ntot = nxyz*nelt
+      ntot = nxyz*lelt
 
       !Memory of all geom factors is contiguous
+      !Be careful ntot should be multiple of lelt not nelt
       call copy(gms,g1m1,ntot*6)
 
       return
@@ -509,6 +504,15 @@ c--------------------------------------------------------------
       save q_2d
       data q_2d /1,3,3,2/
 
+      integer ir1_3d(6),ir2_3d(6)
+      save ir1_3d,ir2_3d
+      data ir1_3d /1,1,2,2,3,3/
+      data ir2_3d /1,2,2,3,3,1/
+
+      integer q_3d(3,3)
+      save q_3d
+      data q_3d /1,4,6,4,2,5,6,5,3/
+
       integer ir1,ir2,i2
 
       integer ntot
@@ -521,33 +525,42 @@ c--------------------------------------------------------------
         icalld = 1
       endif
 
-      ntot=lxyz*lelt
+      ntot=lxyz*nelt
 
       call rzero(grs,ntot*6)
 
       do ie=1,nelt
         call compute_aniso_tensor(s_ij,ie)
-        do ii=1,3
-          ir1 = ir1_2d(ii)
-          ir2 = ir2_2d(ii)
-          i2 = ii
-          if(ii.eq.3)i2=i2+1
-          do j=1,2
-            do i=1,2
-              jj = q_2d(i,j)
-              call addcol5(grs(1,ie,i2),rxg(1,ie,ir1,i),
+        if(if3d)then
+          do ii=1,6
+            ir1 = ir1_3d(ii)
+            ir2 = ir2_3d(ii)
+            i2 = ii
+            do j=1,3
+              do i=1,3
+                jj = q_3d(i,j)
+                call addcol5(grs(1,ie,i2),rxg(1,ie,ir1,i),
      &          rxg(1,ie,ir2,j),wj(1,ie),s_ij(1,jj),lxyz)
+              enddo
             enddo
           enddo
-        enddo
+        else
+          do ii=1,3
+            ir1 = ir1_2d(ii)
+            ir2 = ir2_2d(ii)
+            i2 = ii
+            if(ii.eq.3)i2=i2+1 !since axhelm uses g4m1 instead of g3m1
+            do j=1,2
+              do i=1,2
+                jj = q_2d(i,j)
+                call addcol5(grs(1,ie,i2),rxg(1,ie,ir1,i),
+     &          rxg(1,ie,ir2,j),wj(1,ie),s_ij(1,jj),lxyz)
+              enddo
+            enddo
+          enddo
+        endif
       enddo
-
-      do ii=1,6
-        call col2(grs(1,1,ii),bm1,ntot)
-        call dssum(grs(1,1,ii),lx1,ly1,lz1)
-        call col2(grs(1,1,ii),binvm1,ntot)
-      enddo
-
+      
       return
       end
 c--------------------------------------------------------------      
@@ -563,23 +576,28 @@ c--------------------------------------------------------------
       
       real s_ij(lxyz,6)
 
-      common /sijoij/    sij  (lx1*ly1*lz1,6,lelv)
-     $                , oij  (lx1*ly1*lz1,lelv,3)
-      real sij, oij
-
       integer ie,i,j
 
       real Pr_t,mu_t0,rho,rans_mut
 
-      real uxr,uxs,uyr,uys
-      common /utmp1/ uxr(lxyz),uxs(lxyz),
-     $               uyr(lxyz),uys(lxyz)  
+      real uxr,uxs,uxt,uyr,uys,uyt,uzr,uzs,uzt
+      common /utmp1/ uxr(lxyz),uxs(lxyz),uxt(lxyz),
+     $               uyr(lxyz),uys(lxyz),uyt(lxyz),
+     $               uzr(lxyz),uzs(lxyz),uzt(lxyz) 
+
+      real Cs
 
       Pr_t = coeffs(1)
+      Cs = 0.3
       
-
+      if(if3d)then
+        call local_grad3(uxr,uxs,uxt,vx,lx1-1,ie,dxm1,dxtm1)
+        call local_grad3(uyr,uys,uyt,vy,lx1-1,ie,dxm1,dxtm1)
+        call local_grad3(uzr,uzs,uzt,vz,lx1-1,ie,dxm1,dxtm1)
+      else
       call local_grad2(uxr,uxs,vx,lx1-1,ie,dxm1,dytm1)
       call local_grad2(uyr,uys,vy,lx1-1,ie,dxm1,dytm1)
+      endif
 
       do i=1,lxyz
         mu_t = rans_mut(i,1,1,ie)
@@ -589,21 +607,24 @@ c--------------------------------------------------------------
         if(k.ne.0.)mu_t0 = mu_t/k
 
         if(if3d)then
-          ! s_ij(i,1) = (2./3.)*rho - mu_t0*sij(i,1,ie)
-          ! s_ij(i,2) = (2./3.)*rho - mu_t0*sij(i,2,ie)
-          ! s_ij(i,3) = (2./3.)*rho - mu_t0*sij(i,3,ie)
-          ! s_ij(i,4) = -mu_t0*sij(i,4,ie)
-          ! s_ij(i,5) = -mu_t0*sij(i,5,ie)
-          ! s_ij(i,6) = -mu_t0*sij(i,6,ie)
-          ! call cmult(s_ij,mu_t/Pr_t,6)
-          ! call cadd(s_ij,cpfld(ifield,1),6)
-          continue
+          s_ij(i,1) = (2./3.)*rho - mu_t0*2.0*uxr(i)
+          s_ij(i,2) = (2./3.)*rho - mu_t0*2.0*uys(i)
+          s_ij(i,3) = (2./3.)*rho - mu_t0*2.0*uzt(i)
+          s_ij(i,4) = -mu_t0*(uxs(i)+uyr(i))
+          s_ij(i,5) = -mu_t0*(uyt(i)+uzs(i))
+          s_ij(i,6) = -mu_t0*(uxt(i)+uzr(i))
+          do j=1,6
+            s_ij(i,j) = s_ij(i,j)*mu_t*Cs
+          enddo
+          do j=1,3
+            s_ij(i,j) = s_ij(i,j)+cpfld(2,1)
+          enddo
         else
           s_ij(i,1) = (2./3.)*rho - mu_t0*2.0*uxr(i)
           s_ij(i,2) = (2./3.)*rho - mu_t0*2.0*uys(i)
           s_ij(i,3) = -mu_t0*(uxs(i)+uyr(i))
           do j=1,3
-            s_ij(i,j) = s_ij(i,j)*mu_t*0.3
+            s_ij(i,j) = s_ij(i,j)*mu_t*Cs
           enddo
           do j=1,2
             s_ij(i,j) = s_ij(i,j)+cpfld(2,1)
@@ -651,6 +672,7 @@ c--------------------------------------------------------------
           ! continue
         elseif(ifield.eq.3)then
           !replace geom factors
+          !Be careful - ntot should be multiple of lelt not nelt
           call copy(g1m1,gms,ntot*6)
         endif
       endif
@@ -658,33 +680,188 @@ c--------------------------------------------------------------
       return
       end
 c--------------------------------------------------------------      
-      subroutine eval_vgrad
+      subroutine comp_sij
       implicit none
       include 'SIZE'
       include 'TOTAL'
+      include 'RANS_BUO'
+      
+c
+      integer e
+      logical iflmc
+c
+      integer lxyz
+      parameter(lxyz=lx1*ly1*lz1)
 
-      real u_x,u_y,u_z,v_x,v_y,v_z,w_x,w_y,w_z
-      common /scruz/ u_x (lx1,ly1,lz1,lelv),u_y (lx1,ly1,lz1,lelv)
-     $              ,u_z (lx1,ly1,lz1,lelv),v_x (lx1,ly1,lz1,lelv)
-     $              ,v_y (lx1,ly1,lz1,lelv),v_z (lx1,ly1,lz1,lelv)
-     $              ,w_x (lx1,ly1,lz1,lelv),w_y (lx1,ly1,lz1,lelv)
-     $              ,w_z (lx1,ly1,lz1,lelv)
+      real ur(lxyz),us(lxyz),ut(lxyz)
+     $    ,vr(lxyz),vs(lxyz),vt(lxyz)
+     $    ,wr(lxyz),ws(lxyz),wt(lxyz)
 
+      real j ! Inverse Jacobian
 
-      call gradm1  (u_x, u_y, u_z, vx)
-      call gradm1  (v_x, v_y, v_z, vy)
-      if(if3d) call gradm1  (w_x, w_y, w_z, vz)
+      integer n, nxyz, nij, i
+      
+      real onethird,r,trs
 
-      call opcolv  (u_x, u_y, u_z,bm1)
-      call opcolv  (v_x, v_y, v_z,bm1)
-      if(if3d) call opcolv  (w_x, w_y, w_z,bm1)
+      iflmc = .false. !low-Mach correction - off for now
 
-      call opdssum (u_x, u_y, u_z)
-      call opdssum (v_x, v_y, v_z)
-      if(if3d) call opdssum (w_x, w_y, w_z)
+      nij = 3
+      if(if3d.or.ifaxis)nij = 6
 
-      call opcolv  (u_x, u_y, u_z,binvm1)
-      call opcolv  (v_x, v_y, v_z,binvm1)
-      if(if3d) call opcolv  (w_x, w_y, w_z,binvm1)
+      n    = lx1-1      ! Polynomial degree
+      nxyz = lx1*ly1*lz1
+
+      if (if3d) then     ! 3D CASE
+       do e=1,nelv
+        call local_grad3(ur,us,ut,vx,N,e,dxm1,dxtm1)
+        call local_grad3(vr,vs,vt,vy,N,e,dxm1,dxtm1)
+        call local_grad3(wr,ws,wt,vz,N,e,dxm1,dxtm1)
+
+        do i=1,nxyz
+
+         j = jacmi(i,e)
+
+         sij(i,e,1) = j*  ! du/dx + du/dx
+     $   2*(ur(i)*rxm1(i,1,1,e)+us(i)*sxm1(i,1,1,e)+ut(i)*txm1(i,1,1,e))
+
+         sij(i,e,2) = j*  ! dv/dy + dv/dy
+     $   2*(vr(i)*rym1(i,1,1,e)+vs(i)*sym1(i,1,1,e)+vt(i)*tym1(i,1,1,e))
+
+         sij(i,e,3) = j*  ! dw/dz + dw/dz
+     $   2*(wr(i)*rzm1(i,1,1,e)+ws(i)*szm1(i,1,1,e)+wt(i)*tzm1(i,1,1,e))
+
+         sij(i,e,4) = j*  ! du/dy + dv/dx
+     $   (ur(i)*rym1(i,1,1,e)+us(i)*sym1(i,1,1,e)+ut(i)*tym1(i,1,1,e) +
+     $    vr(i)*rxm1(i,1,1,e)+vs(i)*sxm1(i,1,1,e)+vt(i)*txm1(i,1,1,e) )
+
+         sij(i,e,5) = j*  ! dv/dz + dw/dy
+     $   (wr(i)*rym1(i,1,1,e)+ws(i)*sym1(i,1,1,e)+wt(i)*tym1(i,1,1,e) +
+     $    vr(i)*rzm1(i,1,1,e)+vs(i)*szm1(i,1,1,e)+vt(i)*tzm1(i,1,1,e) )
+
+         sij(i,e,6) = j*  ! du/dz + dw/dx
+     $   (ur(i)*rzm1(i,1,1,e)+us(i)*szm1(i,1,1,e)+ut(i)*tzm1(i,1,1,e) +
+     $    wr(i)*rxm1(i,1,1,e)+ws(i)*sxm1(i,1,1,e)+wt(i)*txm1(i,1,1,e) )
+        enddo
+       enddo
+
+      elseif (ifaxis) then  ! AXISYMMETRIC CASE  
+
+c
+c        Notation:                       ( 2  x  Acheson, p. 353)
+c                     Cylindrical
+c            Nek5k    Coordinates
+c
+c              x          z
+c              y          r
+c              z          theta
+c
+
+         do e=1,nelv
+            call setaxdy ( ifrzer(e) )  ! change dytm1 if on-axis
+            call local_grad2(ur,us,vx,N,e,dxm1,dytm1)
+            call local_grad2(vr,vs,vy,N,e,dxm1,dytm1)
+            call local_grad2(wr,ws,vz,N,e,dxm1,dytm1)
+
+            do i=1,nxyz
+               j = jacmi(i,e)
+               r = ym1(i,1,1,e)                              ! Cyl. Coord:
+
+               sij(i,e,1) = j*  ! du/dx + du/dx              ! e_zz
+     $           2*(ur(i)*rxm1(i,1,1,e)+us(i)*sxm1(i,1,1,e))
+
+               sij(i,e,2) = j*  ! dv/dy + dv/dy              ! e_rr
+     $           2*(vr(i)*rym1(i,1,1,e)+vs(i)*sym1(i,1,1,e))
+
+               if (r.gt.0) then                              ! e_@@
+                  sij(i,e,3) = 2.*vy(i,1,1,e)/r  ! v / r  ! corrected AT: factor of 2, 10/30/18
+               else
+                  sij(i,e,3) = j*  ! L'Hopital's rule: e_@@ = 2dv/dr
+     $            2*(vr(i)*rym1(i,1,1,e)+vs(i)*sym1(i,1,1,e))
+               endif
+
+               sij(i,e,4) = j*  ! du/dy + dv/dx             ! e_zr
+     $            ( ur(i)*rym1(i,1,1,e)+us(i)*sym1(i,1,1,e) +
+     $              vr(i)*rxm1(i,1,1,e)+vs(i)*sxm1(i,1,1,e) )
+
+               if (r.gt.0) then                             ! e_r@
+                  sij(i,e,5) = j*  ! dw/dy 
+     $              ( wr(i)*rym1(i,1,1,e)+ws(i)*sym1(i,1,1,e) )
+     $              - vz(i,1,1,e) / r
+               else
+                  sij(i,e,5) = 0
+               endif
+
+               sij(i,e,6) = j*  ! dw/dx                     ! e_@z
+     $            ( wr(i)*rxm1(i,1,1,e)+ws(i)*sxm1(i,1,1,e) )
+            enddo
+         enddo
+
+      else              ! 2D CASE
+
+         do e=1,nelv
+            call local_grad2(ur,us,vx,N,e,dxm1,dxtm1)
+            call local_grad2(vr,vs,vy,N,e,dxm1,dxtm1)
+
+            do i=1,nxyz
+               j = jacmi(i,e)
+
+               sij(i,e,1) = j*  ! du/dx + du/dx
+     $           2*(ur(i)*rxm1(i,1,1,e)+us(i)*sxm1(i,1,1,e))
+
+               sij(i,e,2) = j*  ! dv/dy + dv/dy
+     $           2*(vr(i)*rym1(i,1,1,e)+vs(i)*sym1(i,1,1,e))
+
+               sij(i,e,3) = j*  ! du/dy + dv/dx
+     $           (ur(i)*rym1(i,1,1,e)+us(i)*sym1(i,1,1,e) +
+     $            vr(i)*rxm1(i,1,1,e)+vs(i)*sxm1(i,1,1,e) )
+
+            enddo
+         enddo
+      endif
+
+      if(iflomach .and. iflmc) then
+
+        onethird = 1./3.
+        if(if3d .or. ifaxis) then
+          do e=1,nelv
+            do i=1,nxyz
+             trS = sij(i,e,1) + sij(i,e,2) + sij(i,e,3) ! 2(du/dx + dv/dy + dw/dz or v/r) in axisym
+             sij(i,e,1) = sij(i,e,1) - onethird*trS     ! 2S - (2/3)Q = S'-(1/3)tr(S')
+            enddo
+          enddo
+        else
+          do e=1,nelv
+            do i=1,nxyz
+             trS = sij(i,e,1) + sij(i,e,2)              ! 2(du/dx + dv/dy)
+             sij(i,e,1) = sij(i,e,1) - onethird*trS     ! 2S - (2/3)Q = S'-(1/3)tr(S')
+            enddo
+           enddo
+        endif
+
+      endif
+
+      call dssum_sij(nij)
+
       return
       end
+c-----------------------------------------------------------------------
+      subroutine dssum_sij(nij)
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'RANS_BUO'
+
+      integer nij,nxyz,ntot,i
+
+      nxyz = lx1*ly1*lz1
+      ntot = nxyz*nelv
+
+      do i=1,nij
+        call col2(sij(1,1,i),bm1,ntot)
+        call dssum(sij(1,1,i),lx1,ly1,lz1)
+        call col2(sij(1,1,i),binvm1,ntot)
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
