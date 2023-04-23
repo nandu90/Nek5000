@@ -36,6 +36,7 @@ c--------------------------------------------------------------
       buo_gvec(3) = g(3)
  
       Cs_buo = 0.3
+      Prt_buo = 0.85
       return
       end
 c--------------------------------------------------------------      
@@ -47,14 +48,13 @@ c--------------------------------------------------------------
       include 'RANS_BUO'
 
       integer ix,iy,iz,iel
-      real Pr_t, rans_mut
+      real rans_mut
 
 
-      Pr_t = coeffs(1)
       mu_t = rans_mut(ix,iy,iz,iel)
 
       if(.not.ifggdh)then
-        buo_diff = cpfld(ifield,1) + mu_t/Pr_t
+        buo_diff = cpfld(ifield,1) + mu_t/Prt_buo
       else
         buo_diff = 1.0
       endif
@@ -190,7 +190,7 @@ c--------------------------------------------------------------
       real xflux(lxyz),yflux(lxyz),zflux(lxyz)
       integer e,i
 
-      real Pr_t,alpinf_str,alp_inf
+      real alpinf_str,alp_inf
       real rho,tau,mu_t0,dotsrc
       real alp_str,alpha,gamm,G_w,G_k
 
@@ -198,7 +198,6 @@ c--------------------------------------------------------------
       save icalld
       data icalld /0/
       
-      Pr_t         = coeffs(1)
       alpinf_str   = coeffs(4)
       alp_inf      = coeffs(9)
 
@@ -236,7 +235,7 @@ c--------------------------------------------------------------
 
             dotsrc = buo_gvec(1)*xflux(i) + buo_gvec(2)*yflux(i)
             if(if3d) dotsrc = dotsrc + buo_gvec(3)*zflux(i)
-            if(.not.ifggdh)dotsrc = dotsrc/Pr_t
+            if(.not.ifggdh)dotsrc = dotsrc/Prt_buo
 
             if(ifrans_diag)then
               ksrc_buo(i,1,1,e) = 0.0
@@ -280,7 +279,7 @@ c--------------------------------------------------------------
       real xflux(lxyz),yflux(lxyz),zflux(lxyz)
       integer e,i
 
-      real Pr_t,alpinf_str,alp_inf
+      real alpinf_str,alp_inf
       real rho,omega,mu_t0,dotsrc
       real alp_str,alpha,gamm,G_w
       real tiny
@@ -289,7 +288,6 @@ c--------------------------------------------------------------
       save icalld
       data icalld /0/
       
-      Pr_t         = coeffs(1)
       alpinf_str   = coeffs(4)
       alp_inf      = coeffs(9)
       tiny         = coeffs(16)
@@ -327,7 +325,7 @@ c--------------------------------------------------------------
 
             dotsrc = buo_gvec(1)*xflux(i) + buo_gvec(2)*yflux(i)
             if(if3d) dotsrc = dotsrc + buo_gvec(3)*zflux(i)
-            if(.not.ifggdh)dotsrc = dotsrc/Pr_t
+            if(.not.ifggdh)dotsrc = dotsrc/Prt_buo
 
             if(ifrans_diag)then
               ksrc_buo(i,1,1,e) = mu_t * dotsrc
