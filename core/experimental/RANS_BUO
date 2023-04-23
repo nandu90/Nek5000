@@ -8,10 +8,10 @@
      $                tx_buo(lx1,ly1,lz1,lelv),
      $                ty_buo(lx1,ly1,lz1,lelv),
      $                tz_buo(lx1,ly1,lz1,lelv),
-     $                buo_gvec(3)
+     $                buo_gvec(3),Cs_buo
 
       real ksrc_buo,kdiag_buo,omgsrc_buo,omgdiag_buo
-      real tx_buo,ty_buo,tz_buo,buo_gvec
+      real tx_buo,ty_buo,tz_buo,buo_gvec,Cs_buo
 
       common /gmfact_store/ gms(lx1*ly1*lz1,lelt,6)
       real gms

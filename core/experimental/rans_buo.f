@@ -34,7 +34,8 @@ c--------------------------------------------------------------
       buo_gvec(1) = g(1)
       buo_gvec(2) = g(2)
       buo_gvec(3) = g(3)
-      
+ 
+      Cs_buo = 0.3
       return
       end
 c--------------------------------------------------------------      
@@ -235,7 +236,7 @@ c--------------------------------------------------------------
 
             dotsrc = buo_gvec(1)*xflux(i) + buo_gvec(2)*yflux(i)
             if(if3d) dotsrc = dotsrc + buo_gvec(3)*zflux(i)
-            dotsrc = dotsrc/Pr_t
+            if(.not.ifggdh)dotsrc = dotsrc/Pr_t
 
             if(ifrans_diag)then
               ksrc_buo(i,1,1,e) = 0.0
@@ -326,7 +327,7 @@ c--------------------------------------------------------------
 
             dotsrc = buo_gvec(1)*xflux(i) + buo_gvec(2)*yflux(i)
             if(if3d) dotsrc = dotsrc + buo_gvec(3)*zflux(i)
-            dotsrc = dotsrc/Pr_t
+            if(.not.ifggdh)dotsrc = dotsrc/Pr_t
 
             if(ifrans_diag)then
               ksrc_buo(i,1,1,e) = mu_t * dotsrc
@@ -431,9 +432,9 @@ c--------------------------------------------------------------
           s12 = -mu_t0*sij(i,ie,4)
           s23 = -mu_t0*sij(i,ie,5)
           s13 = -mu_t0*sij(i,ie,6)
-          xflux(i) = s11*gtx+s12*gty+s13*gtz
-          yflux(i) = s12*gtx+s22*gty+s23*gtz
-          zflux(i) = s13*gtx+s23*gty+s33*gtz
+          xflux(i) = Cs_buo*(s11*gtx+s12*gty+s13*gtz)
+          yflux(i) = Cs_buo*(s12*gtx+s22*gty+s23*gtz)
+          zflux(i) = Cs_buo*(s13*gtx+s23*gty+s33*gtz)
         elseif(ifaxis)then  !To Do
           if(nio.eq.0)then
             write(*,*)"Axisymmetric not yet supported with Buoyancy"
@@ -443,8 +444,8 @@ c--------------------------------------------------------------
           s11 = (2./3.)*rho - mu_t0*sij(i,ie,1)
           s22 = (2./3.)*rho - mu_t0*sij(i,ie,2)
           s12 = -mu_t0*sij(i,ie,3)
-          xflux(i) = s11*gtx+s12*gty
-          yflux(i) = s12*gtx+s22*gty
+          xflux(i) = Cs_buo*(s11*gtx+s12*gty)
+          yflux(i) = Cs_buo*(s12*gtx+s22*gty)
         endif
       enddo
 
@@ -578,17 +579,12 @@ c--------------------------------------------------------------
 
       integer ie,i,j
 
-      real Pr_t,mu_t0,rho,rans_mut
+      real mu_t0,rho,rans_mut
 
       real uxr,uxs,uxt,uyr,uys,uyt,uzr,uzs,uzt
       common /utmp1/ uxr(lxyz),uxs(lxyz),uxt(lxyz),
      $               uyr(lxyz),uys(lxyz),uyt(lxyz),
      $               uzr(lxyz),uzs(lxyz),uzt(lxyz) 
-
-      real Cs
-
-      Pr_t = coeffs(1)
-      Cs = 0.3
       
       if(if3d)then
         call local_grad3(uxr,uxs,uxt,vx,lx1-1,ie,dxm1,dxtm1)
@@ -614,7 +610,7 @@ c--------------------------------------------------------------
           s_ij(i,5) = -mu_t0*(uyt(i)+uzs(i))
           s_ij(i,6) = -mu_t0*(uxt(i)+uzr(i))
           do j=1,6
-            s_ij(i,j) = s_ij(i,j)*mu_t*Cs
+            s_ij(i,j) = s_ij(i,j)*mu_t*Cs_buo
           enddo
           do j=1,3
             s_ij(i,j) = s_ij(i,j)+cpfld(2,1)
@@ -624,7 +620,7 @@ c--------------------------------------------------------------
           s_ij(i,2) = (2./3.)*rho - mu_t0*2.0*uys(i)
           s_ij(i,3) = -mu_t0*(uxs(i)+uyr(i))
           do j=1,3
-            s_ij(i,j) = s_ij(i,j)*mu_t*Cs
+            s_ij(i,j) = s_ij(i,j)*mu_t*Cs_buo
           enddo
           do j=1,2
             s_ij(i,j) = s_ij(i,j)+cpfld(2,1)
