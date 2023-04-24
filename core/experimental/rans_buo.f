@@ -518,17 +518,17 @@ c--------------------------------------------------------------
 
       if(icalld.eq.0)then
         !Store weighted jacobian
-        do ie=1,nelt
+        do ie=1,lelt
           call invcol3(wj(1,ie),w3m1,jacm1(1,1,1,ie),lxyz)
         enddo
         icalld = 1
       endif
 
-      ntot=lxyz*nelt
+      ntot=lxyz*lelt
 
       call rzero(grs,ntot*6)
 
-      do ie=1,nelt
+      do ie=1,lelt
         call compute_aniso_tensor(s_ij,ie)
         if(if3d)then
           do ii=1,6
