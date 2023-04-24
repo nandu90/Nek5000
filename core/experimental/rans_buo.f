@@ -528,6 +528,9 @@ c--------------------------------------------------------------
 
       call rzero(grs,ntot*6)
 
+      !TO DO: delete call from above
+      call comp_sij
+
       do ie=1,lelt
         call compute_aniso_tensor(s_ij,ie)
         if(if3d)then
@@ -584,14 +587,15 @@ c--------------------------------------------------------------
      $               uyr(lxyz),uys(lxyz),uyt(lxyz),
      $               uzr(lxyz),uzs(lxyz),uzt(lxyz) 
       
-      if(if3d)then
-        call local_grad3(uxr,uxs,uxt,vx,lx1-1,ie,dxm1,dxtm1)
-        call local_grad3(uyr,uys,uyt,vy,lx1-1,ie,dxm1,dxtm1)
-        call local_grad3(uzr,uzs,uzt,vz,lx1-1,ie,dxm1,dxtm1)
-      else
-      call local_grad2(uxr,uxs,vx,lx1-1,ie,dxm1,dytm1)
-      call local_grad2(uyr,uys,vy,lx1-1,ie,dxm1,dytm1)
-      endif
+     !cleanup required
+      ! if(if3d)then
+      !   call local_grad3(uxr,uxs,uxt,vx,lx1-1,ie,dxm1,dxtm1)
+      !   call local_grad3(uyr,uys,uyt,vy,lx1-1,ie,dxm1,dxtm1)
+      !   call local_grad3(uzr,uzs,uzt,vz,lx1-1,ie,dxm1,dxtm1)
+      ! else
+      ! call local_grad2(uxr,uxs,vx,lx1-1,ie,dxm1,dytm1)
+      ! call local_grad2(uyr,uys,vy,lx1-1,ie,dxm1,dytm1)
+      ! endif
 
       do i=1,lxyz
         mu_t = rans_mut(i,1,1,ie)
@@ -601,12 +605,12 @@ c--------------------------------------------------------------
         if(k.ne.0.)mu_t0 = mu_t/k
 
         if(if3d)then
-          s_ij(i,1) = (2./3.)*rho - mu_t0*2.0*uxr(i)
-          s_ij(i,2) = (2./3.)*rho - mu_t0*2.0*uys(i)
-          s_ij(i,3) = (2./3.)*rho - mu_t0*2.0*uzt(i)
-          s_ij(i,4) = -mu_t0*(uxs(i)+uyr(i))
-          s_ij(i,5) = -mu_t0*(uyt(i)+uzs(i))
-          s_ij(i,6) = -mu_t0*(uxt(i)+uzr(i))
+          s_ij(i,1) = (2./3.)*rho - mu_t0*sij(i,ie,1)
+          s_ij(i,2) = (2./3.)*rho - mu_t0*sij(i,ie,2)
+          s_ij(i,3) = (2./3.)*rho - mu_t0*sij(i,ie,3)
+          s_ij(i,4) = -mu_t0*sij(i,ie,4)
+          s_ij(i,5) = -mu_t0*sij(i,ie,5)
+          s_ij(i,6) = -mu_t0*sij(i,ie,6)
           do j=1,6
             s_ij(i,j) = s_ij(i,j)*mu_t*Cs_buo
           enddo
@@ -614,9 +618,9 @@ c--------------------------------------------------------------
             s_ij(i,j) = s_ij(i,j)+cpfld(2,1)
           enddo
         else
-          s_ij(i,1) = (2./3.)*rho - mu_t0*2.0*uxr(i)
-          s_ij(i,2) = (2./3.)*rho - mu_t0*2.0*uys(i)
-          s_ij(i,3) = -mu_t0*(uxs(i)+uyr(i))
+          s_ij(i,1) = (2./3.)*rho - mu_t0*sij(i,ie,1)
+          s_ij(i,2) = (2./3.)*rho - mu_t0*sij(i,ie,2)
+          s_ij(i,3) = -mu_t0*sij(i,ie,3)
           do j=1,3
             s_ij(i,j) = s_ij(i,j)*mu_t*Cs_buo
           enddo
