@@ -216,7 +216,7 @@ c--------------------------------------------------------------
       if(ifield.eq.3)then
         ! Evaluate vel and temp gradient once per time step
         call eval_tgrad
-        if(ifggdh) call comp_sij
+        ! if(ifggdh) call comp_sij
       endif
 
       do e=1,nelv
@@ -307,7 +307,7 @@ c--------------------------------------------------------------
       if(ifield.eq.3)then
         ! Evaluate vel and temp gradient once per time step
         call eval_tgrad
-        if(ifggdh) call comp_sij
+        ! if(ifggdh) call comp_sij
       endif
 
       do e=1,nelv
@@ -587,7 +587,7 @@ c--------------------------------------------------------------
      $               uyr(lxyz),uys(lxyz),uyt(lxyz),
      $               uzr(lxyz),uzs(lxyz),uzt(lxyz) 
       
-     !cleanup required
+      !cleanup required
       ! if(if3d)then
       !   call local_grad3(uxr,uxs,uxt,vx,lx1-1,ie,dxm1,dxtm1)
       !   call local_grad3(uyr,uys,uyt,vy,lx1-1,ie,dxm1,dxtm1)
