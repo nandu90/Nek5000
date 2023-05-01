@@ -923,21 +923,6 @@ c--------------------------------------------------------------
 
       real mu_t0,rho,rans_mut
 
-      real uxr,uxs,uxt,uyr,uys,uyt,uzr,uzs,uzt
-      common /utmp1/ uxr(lxyz),uxs(lxyz),uxt(lxyz),
-     $               uyr(lxyz),uys(lxyz),uyt(lxyz),
-     $               uzr(lxyz),uzs(lxyz),uzt(lxyz) 
-      
-      !cleanup required
-      ! if(if3d)then
-      !   call local_grad3(uxr,uxs,uxt,vx,lx1-1,ie,dxm1,dxtm1)
-      !   call local_grad3(uyr,uys,uyt,vy,lx1-1,ie,dxm1,dxtm1)
-      !   call local_grad3(uzr,uzs,uzt,vz,lx1-1,ie,dxm1,dxtm1)
-      ! else
-      ! call local_grad2(uxr,uxs,vx,lx1-1,ie,dxm1,dytm1)
-      ! call local_grad2(uyr,uys,vy,lx1-1,ie,dxm1,dytm1)
-      ! endif
-
       do i=1,lxyz
         mu_t = rans_mut(i,1,1,ie)
         rho = vtrans(i,1,1,ie,1)
