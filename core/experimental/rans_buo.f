@@ -21,12 +21,16 @@ c--------------------------------------------------------------
       endif
 
       if(.not.ifrans_ktau_stndrd .and.
-     &   .not.ifrans_komg_stndrd)then
+     &   .not.ifrans_komg_stndrd .and.
+     &   .not.ifrans_ktauSST_stndrd .and.
+     &   .not.ifrans_komgSST_stndrd)then
         if(nid.eq.0)then
           write(6,*)
      &    "ERROR: Buoyancy is only supported with:"
-          write(6,*)"std. k-tau     : m_id = 4"
-          write(6,*)"reg. k-omega   : m_id = 0"
+          write(6,*)"reg. k-omega     : m_id = 0"
+          write(6,*)"reg. k-omega SST : m_id = 2"
+          write(6,*)"std. k-tau       : m_id = 4"
+          write(6,*)"std. k-tau SST   : m_id = 6"
         endif
         call exitt
       endif
@@ -36,7 +40,8 @@ c--------------------------------------------------------------
       buo_gvec(3) = g(3)
  
       Cs_buo = 0.3
-      Prt_buo = 0.85
+      !Clifford,C.E.,& Kimber,M.L.(2020). Numerical Heat Transfer 78(10), 560-594.
+      Prt_buo = 0.4
       return
       end
 c--------------------------------------------------------------      
@@ -81,6 +86,8 @@ c--------------------------------------------------------------
      
         if(ifrans_ktau_stndrd) call rans_ktau_stndrd_buo
         if(ifrans_komg_stndrd) call rans_komega_stndrd_buo
+        if(ifrans_ktauSST_stndrd) call rans_ktauSST_stndrd_buo
+        if(ifrans_komgSST_stndrd) call rans_komgSST_stndrd_buo
         ifevalbuo = .false.
       endif
 
@@ -110,6 +117,8 @@ c--------------------------------------------------------------
      
         if(ifrans_ktau_stndrd) call rans_ktau_stndrd_buo
         if(ifrans_komg_stndrd) call rans_komega_stndrd_buo
+        if(ifrans_ktauSST_stndrd) call rans_ktauSST_stndrd_buo
+        if(ifrans_komgSST_stndrd) call rans_komgSST_stndrd_buo
         ifevalbuo = .false.
       endif
 
@@ -138,6 +147,8 @@ c--------------------------------------------------------------
      
         if(ifrans_ktau_stndrd) call rans_ktau_stndrd_buo
         if(ifrans_komg_stndrd) call rans_komega_stndrd_buo
+        if(ifrans_ktauSST_stndrd) call rans_ktauSST_stndrd_buo
+        if(ifrans_komgSST_stndrd) call rans_komgSST_stndrd_buo
         ifevalbuo = .false.
       endif
 
@@ -167,6 +178,8 @@ c--------------------------------------------------------------
      
         if(ifrans_ktau_stndrd) call rans_ktau_stndrd_buo
         if(ifrans_komg_stndrd) call rans_komega_stndrd_buo
+        if(ifrans_ktauSST_stndrd) call rans_ktauSST_stndrd_buo
+        if(ifrans_komgSST_stndrd) call rans_komgSST_stndrd_buo
         ifevalbuo = .false.
       endif
 
@@ -266,6 +279,178 @@ c--------------------------------------------------------------
       return
       end
 c--------------------------------------------------------------      
+      subroutine rans_ktauSST_stndrd_buo
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'RANS_KOMG'
+      include 'RANS_BUO'
+
+      integer lxyz
+      parameter(lxyz=lx1*ly1*lz1)
+
+      real xflux(lxyz),yflux(lxyz),zflux(lxyz)
+      integer e,i
+
+      real alpinf_str,alp_inf
+      real rho,tau,mu_t0,dotsrc
+      real alp_str,alpha,gamm,G_w,G_k
+
+      real Pr_t,sigk1,sigom1
+      real r_k,beta1,alp0_str
+      real beta_str,gamma1,r_b,akk
+      real alpha_0,r_w
+      real alp1,beta2,sigk2,sigom2,gamma2
+      
+      real arg1,arg1_1,arg1_2,arg2,arg2_1,arg2_2
+      real argf1,argf2,argn
+      real fun1,fun2,gamma
+      real tiny,tinysst,denom,st_magn
+      real xk,yw,ywm1,ywm2
+
+      common /storesom/ St_mag2(lx1*ly1*lz1,lelv)
+     $                , Om_mag2(lx1*ly1*lz1,lelv)
+     $                , OiOjSk (lx1*ly1*lz1,lelv)
+     $                , DivQ   (lx1*ly1*lz1,lelv)
+      real St_mag2,Om_mag2,OiOjSk,DivQ
+
+      integer icalld
+      save icalld
+      data icalld /0/
+
+c Turbulent viscosity constants
+        Pr_t         = coeffs( 1)
+        sigk1        = coeffs( 2)
+        sigom1       = coeffs( 3)
+
+c Low Reynolds number correction constants
+        alpinf_str   = coeffs( 4)
+        r_k          = coeffs( 5)
+        beta1        = coeffs( 6)
+        alp0_str     = coeffs( 7)
+
+c Dissipation of K constants
+        beta_str     = coeffs( 8)
+        gamma1       = coeffs( 9)
+        r_b          = coeffs(10)
+        akk          = coeffs(11)
+
+c Production of omega constants
+        alpha_0      = coeffs(12)
+        r_w          = coeffs(13)
+
+c Dissipation of omega constants
+c         beta_0 = defined earlier	     
+
+        kv_min       = coeffs(14)
+        omeg_max     = coeffs(15)
+        tiny         = coeffs(16)
+
+c additional SST and k and epsilon constants
+        alp1         = coeffs(17)
+        beta2        = coeffs(18)
+        sigk2        = coeffs(19)
+        sigom2       = coeffs(20)
+        gamma2       = coeffs(21)
+
+      if(.not.ifsgdh .and. .not.ifggdh)then
+        ! no Buoyancy production term in k-tau eqns
+        if(icalld.eq.0)then
+          call rzero(ksrc_buo,lxyz*nelt)
+          call rzero(kdiag_buo,lxyz*nelt)
+          call rzero(omgsrc_buo,lxyz*nelt)
+          call rzero(omgdiag_buo,lxyz*nelt)
+          icalld=1
+        endif
+        return
+      endif
+
+      if(ifield.eq.3)then
+        ! Evaluate vel and temp gradient once per time step
+        call eval_tgrad
+        ! if(ifggdh) call comp_sij
+      endif
+
+      call comp_StOm (St_mag2, Om_mag2, OiOjSk, DivQ)
+
+      do e=1,nelv
+         if(ifsgdh)call flux_sgdh_compute(xflux,yflux,zflux,e)
+         if(ifggdh)call flux_ggdh_compute(xflux,yflux,zflux,e)
+
+         do i=1,lxyz
+           rho = vtrans(i,1,1,e,1)
+           mu = vdiff(i,1,1,e,1)
+           nu = mu/rho
+
+           k = t(i,1,1,e,ifld_k-1)
+           tau = t(i,1,1,e,ifld_omega-1)
+
+           St_magn = sqrt(St_mag2(i,e))
+
+           yw     = ywd  (i,1,1,e)
+           ywm1   = ywdm1(i,1,1,e)
+           ywm2   = ywm1*ywm1
+           arg2_1 =     sqrt(k) * ywm1 * tau / beta_str
+           arg2_2 =    500.0*nu * ywm2 * tau
+           arg2   = 2.0*arg2_1
+           argF2  =     sqrt(k)*yw/(500.0*nu*beta_str)
+           if(2.0*argF2 .le. 1.0) arg2   = arg2_2
+           Fun2   = tanh(arg2 * arg2)
+
+           tinySST= 1.0e-10
+           arg1_1 = arg2_1
+           if(    argF2 .le. 1.0) arg1_1   = arg2_2
+           arg1_2 =     4.0 * rho * sigom2 * k * ywm2 / tinySST
+           argF1  = tinySST * tau /(2.0 * rho * sigom2)
+           if(xk .gt. argF1) arg1_2 =   2.0 * k * tau * ywm2 / xk
+           arg1   = min(    arg1_1, arg1_2)
+           Fun1   = tanh(arg1 * arg1 * arg1 * arg1)
+
+           mu_t   = rho * k * tau
+           mu_t0  = rho * tau
+           argn   = Fun2*St_magn ! this can also be Om_magn
+           if(alp1.le.(argn*tau)) then
+             mu_t   = 0.0
+             mu_t0  = 0.0
+             if(argn.ne.0.)then
+               mu_t   = rho * alp1 * k/argn
+               mu_t0  = rho * alp1 /argn
+             endif
+             denom  = argn/ alp1
+           else
+             denom  = 0.
+             if(tau.ne.0.) denom  = 1.0/tau
+           endif
+
+           dotsrc = buo_gvec(1)*xflux(i) + buo_gvec(2)*yflux(i)
+           if(if3d) dotsrc = dotsrc + buo_gvec(3)*zflux(i)
+           if(.not.ifggdh)dotsrc = dotsrc/Prt_buo
+
+           if(ifrans_diag)then
+             ksrc_buo(i,1,1,e) = 0.0
+             kdiag_buo(i,1,1,e) = -mu_t0 * dotsrc
+           else
+             ksrc_buo(i,1,1,e) = mu_t * dotsrc
+             kdiag_buo(i,1,1,e) = 0.0
+           endif
+
+           gamma = Fun1 * gamma1 + (1.0 - Fun1) * gamma2
+
+           G_w = rho*gamma*tau*dotsrc
+
+           if(ifrans_diag)then
+             omgsrc_buo(i,1,1,e) = 0.0 
+             omgdiag_buo(i,1,1,e) = -G_w
+           else
+             omgsrc_buo(i,1,1,e) = G_w*tau
+             omgdiag_buo(i,1,1,e) = 0.0
+           endif
+         enddo
+      enddo
+      
+      return
+      end
+c--------------------------------------------------------------      
       subroutine rans_komega_stndrd_buo
       implicit none
       include 'SIZE'
@@ -339,6 +524,162 @@ c--------------------------------------------------------------
             gamm = alpha*alp_str
 
             G_w = rho*gamm*dotsrc
+
+            if(ifrans_diag)then
+              omgsrc_buo(i,1,1,e) = G_w 
+              omgdiag_buo(i,1,1,e) = 0.0
+            else
+              omgsrc_buo(i,1,1,e) = G_w
+              omgdiag_buo(i,1,1,e) = 0.0
+            endif
+         enddo
+      enddo
+      
+      return
+      end
+c--------------------------------------------------------------      
+      subroutine rans_komgSST_stndrd_buo
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'RANS_KOMG'
+      include 'RANS_BUO'
+
+      integer lxyz
+      parameter(lxyz=lx1*ly1*lz1)
+
+      real xflux(lxyz),yflux(lxyz),zflux(lxyz)
+      integer e,i
+
+      real alpinf_str,alp_inf
+      real rho,omega,mu_t0,dotsrc
+      real alp_str,alpha,gamm,G_w
+
+      real Pr_t,sigk1,sigom1
+      real r_k,beta1,alp0_str
+      real beta_str,gamma1,r_b,akk
+      real alpha_0,r_w
+      real alp1,beta2,sigk2,sigom2,gamma2
+      
+      real arg1,arg1_1,arg1_2,arg2,arg2_1,arg2_2
+      real argf1,argf2,argn
+      real fun1,fun2,gamma
+      real tiny,tinysst,denom,st_magn
+      real xk,yw,ywm1,ywm2
+
+      common /storesom/ St_mag2(lx1*ly1*lz1,lelv)
+     $                , Om_mag2(lx1*ly1*lz1,lelv)
+     $                , OiOjSk (lx1*ly1*lz1,lelv)
+     $                , DivQ   (lx1*ly1*lz1,lelv)
+      real St_mag2, Om_mag2, OiOjSk, DivQ
+
+      integer icalld
+      save icalld
+      data icalld /0/
+      
+      Pr_t         = coeffs( 1)
+      sigk1        = coeffs( 2)
+      sigom1       = coeffs( 3)
+
+      alpinf_str   = coeffs( 4)
+      r_k          = coeffs( 5)
+      beta1        = coeffs( 6)
+      alp0_str     = coeffs( 7)
+
+      beta_str     = coeffs( 8)
+      gamma1       = coeffs( 9)
+      r_b          = coeffs(10)
+      akk          = coeffs(11)
+
+      alpha_0      = coeffs(12)
+      r_w          = coeffs(13)
+
+      kv_min       = coeffs(14)
+      omeg_max     = coeffs(15)
+      tiny         = coeffs(16)
+
+      alp1         = coeffs(17)
+      beta2        = coeffs(18)
+      sigk2        = coeffs(19)
+      sigom2       = coeffs(20)
+      gamma2       = coeffs(21)
+
+      if(.not.ifsgdh .and. .not.ifggdh)then
+        ! no Buoyancy production term in k-tau eqns
+        if(icalld.eq.0)then
+          call rzero(ksrc_buo,lxyz*nelt)
+          call rzero(kdiag_buo,lxyz*nelt)
+          call rzero(omgsrc_buo,lxyz*nelt)
+          call rzero(omgdiag_buo,lxyz*nelt)
+          icalld=1
+        endif
+        return
+      endif
+
+      if(ifield.eq.3)then
+        ! Evaluate vel and temp gradient once per time step
+        call eval_tgrad
+        ! if(ifggdh) call comp_sij
+      endif
+
+      call comp_StOm (St_mag2, Om_mag2, OiOjSk, DivQ)
+
+      do e=1,nelv
+         if(ifsgdh)call flux_sgdh_compute(xflux,yflux,zflux,e)
+         if(ifggdh)call flux_ggdh_compute(xflux,yflux,zflux,e)
+
+         do i=1,lxyz
+            rho = vtrans(i,1,1,e,1)
+            mu = vdiff(i,1,1,e,1)
+            nu = mu/rho
+
+            k = t(i,1,1,e,ifld_k-1)
+            omega = t(i,1,1,e,ifld_omega-1) + f_omegb(i,1,1,e)
+
+            St_magn = sqrt(St_mag2(i,e))
+
+            yw     = ywd  (i,1,1,e)
+            ywm1   = ywdm1(i,1,1,e)
+            ywm2   = ywm1*ywm1
+            arg2_1 =     sqrt(k) * ywm1 / omega / beta_str
+            arg2_2 =          500.0*nu * ywm2 / omega
+            arg2   = 2.0*arg2_1
+            argF2  =     sqrt(k)*yw/(500.0*nu*beta_str)
+            if(2.0*argF2 .le. 1.0) arg2   = arg2_2
+            Fun2   = tanh(arg2 * arg2)
+
+            tinySST= 1.0e-10
+            arg1_1 = arg2_1
+            if(    argF2 .le. 1.0) arg1_1   = arg2_2
+            arg1_2 =     4.0 * rho * sigom2 * k * ywm2 / tinySST
+            argF1  = tinySST * omega /(2.0 * rho * sigom2)
+            if(xk .gt. argF1) arg1_2 =   2.0 * k * omega * ywm2 / xk
+            arg1   = min(    arg1_1, arg1_2)
+            Fun1   = tanh(arg1 * arg1 * arg1 * arg1)
+
+            mu_t   = rho * k/(omega + tiny)
+            argn   = Fun2*St_magn ! this can also be Om_magn
+            if(omega.le.argn/alp1) then
+              mu_t   = rho * alp1 * k/argn
+              denom  = argn/ alp1
+            else
+              denom  = omega
+            endif
+
+            dotsrc = buo_gvec(1)*xflux(i) + buo_gvec(2)*yflux(i)
+            if(if3d) dotsrc = dotsrc + buo_gvec(3)*zflux(i)
+            if(.not.ifggdh)dotsrc = dotsrc/Prt_buo
+
+            if(ifrans_diag)then
+              ksrc_buo(i,1,1,e) = mu_t * dotsrc
+              kdiag_buo(i,1,1,e) = 0.0
+            else
+              ksrc_buo(i,1,1,e) = mu_t * dotsrc
+              kdiag_buo(i,1,1,e) = 0.0
+            endif
+
+            gamma = Fun1 * gamma1 + (1.0 - Fun1) * gamma2
+            G_w = rho*gamma*dotsrc
 
             if(ifrans_diag)then
               omgsrc_buo(i,1,1,e) = G_w 
