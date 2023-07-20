@@ -1,0 +1,34 @@
+#Nek5000 parameter file
+[GENERAL]
+startFrom = cav.fld
+numSteps = 100000 #50000
+dt = 1.e-3
+writeInterval = 100000 #50000
+
+[PROBLEMTYPE]
+variableProperties = yes
+stressFormulation = yes
+
+[PRESSURE]
+residualTol = 1.0e-5
+#residualProj = yes
+
+[VELOCITY]
+density = 1.0
+viscosity = -47173.0
+residualTol = 1.0e-6
+
+[TEMPERATURE]
+rhoCp = 1.0
+conductivity = -33493.0 #should be Peclet number
+residualTol = 1.0e-6
+
+[SCALAR01]
+density = 1.0
+diffusivity = -47173.0
+residualTol = 1.0e-6
+
+[SCALAR02]
+density = 1.0
+diffusivity = -47173.0
+residualTol = 1.0e-6

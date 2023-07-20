@@ -1,0 +1,704 @@
+C
+C  USER SPECIFIED ROUTINES: 
+C
+C     - boundary conditions 
+C     - initial conditions  
+C     - variable properties 
+C     - forcing function for fluid (f)
+C     - forcing function for passive scalar (q)
+C     - general purpose routine for checking errors etc.        
+C
+c-----------------------------------------------------------------------
+      include "experimental/rans_komg.f"
+      include "experimental/rans_wallfunctions.f"
+      include "experimental/rans_buo.f"
+      include "limits.f"
+      include "utilities.f"
+      include "lineplot.f"
+c-----------------------------------------------------------------------
+      subroutine uservp (ix,iy,iz,eg)
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      integer ix,iy,iz,e,eg
+      real rans_mut,rans_mutsk,rans_mutso,buo_diff
+      real mu_t,Pr_t
+      integer i
+
+      e = gllel(eg)
+
+      mu_t=rans_mut(ix,iy,iz,e)
+
+      utrans = cpfld(ifield,2)
+      if(ifield.eq.1) then
+        udiff = cpfld(ifield,1)+mu_t
+      elseif(ifield.eq.2) then
+        udiff = buo_diff(ix,iy,iz,e)
+      elseif(ifield.eq.3) then  !use rho and mu from field 1
+        udiff = cpfld(1,1)+rans_mutsk(ix,iy,iz,e)
+      elseif(ifield.eq.4) then  !use rho and mu from field 1
+        udiff = cpfld(1,1)+rans_mutso(ix,iy,iz,e)
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userf(ix,iy,iz,eg) ! set acceleration term
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+c
+c     Note: this is an acceleration term, NOT a force!
+c     Thus, ffx will subsequently be multiplied by rho(x,t).
+c
+      integer ix,iy,iz,e,eg
+
+      real Ri
+
+      e = gllel(eg)
+
+      Ri = 1.0
+      
+      ffx = 0.0
+      ffy = t(ix,iy,iz,e,1)*Ri
+      ffz = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userq  (ix,iy,iz,ieg)
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      common /rans_usr/ ifld_k, ifld_omega, m_id
+      integer ifld_k,ifld_omega, m_id
+
+      real rans_kSrc,rans_omgSrc
+     $   , rans_kDiag,rans_omgDiag
+
+      real buo_ksrc,buo_kdiag,
+     $      buo_omgsrc, buo_omgdiag
+
+      integer ie,ix,iy,iz,ieg
+      ie = gllel(ieg)
+
+      if (ifield.eq.2) then
+        qvol = 0.0 
+        avol = 0.0
+      elseif (ifield.eq.ifld_k) then
+        qvol = rans_kSrc  (ix,iy,iz,ie) + buo_ksrc(ix,iy,iz,ie)
+        avol = rans_kDiag (ix,iy,iz,ie) + buo_kdiag(ix,iy,iz,ie)
+      elseif (ifield.eq.ifld_omega) then
+        qvol = rans_omgSrc (ix,iy,iz,ie) + buo_omgsrc(ix,iy,iz,ie)
+        avol = rans_omgDiag(ix,iy,iz,ie) + buo_omgdiag(ix,iy,iz,ie)
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userbc(ix,iy,iz,iside,eg) ! set up boundary conditions
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+c
+      common /rans_usr/ ifld_k, ifld_omega, m_id
+      integer ifld_k,ifld_omega, m_id
+      
+      integer ix,iy,iz,iside,e,eg
+
+      integer icalld
+      save icalld
+      data icalld /0/
+
+      real T_bottom, T_top
+      real xx,yy
+
+      e = gllel(eg)
+
+      if(icalld.eq.0)then
+        call getTempProf
+        icalld = 1
+      endif
+
+      xx = xm1(ix,iy,iz,e)
+      yy = ym1(ix,iy,iz,e)
+
+      if(ifield.eq.1)then
+        ux   = 0.0
+        uy   = 0.0
+        uz   = 0.0
+      elseif(ifield.eq.2)then
+       if(xx.lt.1e-8 .or. abs(xx-1.).lt.1e-8)then !hot/cold walls
+          temp = 1.- xx
+        else !bottom/top walls
+          call initprof(xx,T_top,T_bottom)
+          if(yy.lt.0.5)temp = T_bottom
+          if(yy.gt.0.5)temp = T_top
+        endif
+      elseif(ifield.eq.ifld_k)then
+        temp = 0.0
+      elseif(ifield.eq.ifld_omega)then
+        temp = 0.0
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine useric (ix,iy,iz,eg)
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'NEKUSE'
+
+      integer ix,iy,iz,e,eg
+      
+      common /rans_usr/ ifld_k, ifld_omega, m_id
+      integer ifld_k,ifld_omega, m_id
+
+      e = gllel(eg)
+
+      if(ifield.eq.1)then
+        ux   = 0.0
+        uy   = 0.0
+        uz   = 0.0
+      elseif(ifield.eq.2)then
+        temp = 1.- xm1(ix,iy,iz,e)
+      elseif(ifield.eq.ifld_k)then
+        temp = 0.01
+      elseif(ifield.eq.ifld_omega)then
+        temp = 0.1
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine userchk()
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+
+      real flow_rate,base_flow,dom_len,xsec,scale_vf(3)
+      common /cvflow_r/ flow_rate,base_flow,dom_len,xsec,scale_vf
+
+      real wd
+      common /walldist/ wd(lx1,ly1,lz1,lelv)
+
+      real glsc3,bc_average
+      real Twall,Tbulk,Nuss
+      real ptA(3),ptB(3)
+      integer ie,ifc,ifld,n
+
+      n= lx1*ly1*lz1*nelv
+
+      if(mod(istep,100).eq.0)then
+         call print_limits
+         call y_p_limits(wd,.true.)
+      endif
+
+      call avg_all
+
+      ! if(istep.eq.nsteps) then
+      !    call replace_avg(1)
+      !    ptA(1) = 0.0
+      !    ptA(2) = 0.5
+      !    ptA(3) = 0.0
+      !    ptB(1) = 1.0
+      !    ptB(2) = 0.5
+      !    ptB(3) = 0.0
+
+      !   call lineplot(ptA,ptB,10001)
+
+      !   call analysis
+        
+      !   call replace_avg(2)
+      ! endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat   ! This routine to modify element vertices
+      implicit none
+      include 'SIZE'      ! _before_ mesh is generated, which 
+      include 'TOTAL'     ! guarantees GLL mapping of mesh.
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat2()
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+
+      real wd
+      common /walldist/ wd(lx1,ly1,lz1,lelv)
+
+      common /rans_usr/ ifld_k, ifld_omega, m_id
+      integer ifld_k,ifld_omega, m_id
+
+      integer w_id,imid,i
+      real coeffs(30) !array for passing your own coeffs
+      logical ifcoeffs
+ 
+      integer buo_id
+
+      real gvec(3)
+
+      real BETAM
+      parameter(BETAM=2.2)
+      
+      integer ntot
+
+      real sgnx,sgny,xx,yy,xmin,ymin,glmin
+
+      real Th,Tc,deltaT,Lref,Tref,g,beta,V0,nu,rho
+      real Prandtl,Gr,Re,Ri,Ra
+
+      ntot = lx1*ly1*lz1*nelt
+
+!     Mesh manipulation  
+      xmin = abs(glmin(xm1,ntot))
+      ymin = abs(glmin(ym1,ntot))
+      do i=1,ntot
+        sgnx = sign(1.,xm1(i,1,1,1))
+        sgny = sign(1.,ym1(i,1,1,1))
+        xx = abs(xm1(i,1,1,1))
+        yy = abs(ym1(i,1,1,1))
+        xm1(i,1,1,1) = sgnx*(tanh(BETAM*2*xx)/tanh(BETAM))/2.0 + xmin
+        ym1(i,1,1,1) = sgny*(tanh(BETAM*2*yy)/tanh(BETAM))/2.0 + ymin
+      enddo
+      
+!   Case parameters
+      Th = 50                   !deg. C
+      Tc = 10                   !deg. C
+      Prandtl = 0.71
+      deltaT = Th-Tc
+      Lref = 0.75               !m
+      g = 9.81                  !m/s^2
+      beta = 3.32e-3            !1/K
+      Tref = (Th+Tc)/2.0
+      V0 = sqrt(g*beta*Lref*deltaT)
+      nu = 1.608e-5
+      rho = 1.164
+      Gr = (g*beta*deltaT*Lref**3.)/nu**2.
+      Re = V0*Lref/nu
+      Ri = Gr/Re**2
+      Ra = Gr*Prandtl
+
+      if(nio.eq.0)then
+          write(*,*)"Buoyant Velocity",V0
+          write(*,*)"Grashof number", Gr
+          write(*,*)"Prandtl number", Prandtl
+          write(*,*)"Richardson number", Ri
+          write(*,*)"Rayleigh number",Ra
+      endif
+
+!   RANS Parameter      
+      ifld_k     = 3 !address of tke equation in t array
+      ifld_omega = 4 !address of omega equation in t array
+      ifcoeffs=.false. !set to true to pass your own coeffs
+
+C     Supported models:
+c      m_id = 0 !regularized standard k-omega (no wall functions)
+c      m_id = 1 !regularized low-Re k-omega (no wall functions)
+c      m_id = 2 !regularized standard k-omega SST (no wall functions)
+c      m_id = 3 !non-regularized standard k-omega (wall functions)
+      m_id = 4                  !non-regularized standard k-tau
+c      m_id = 5 !non-regularized low Re k-tau 
+c      m_id = 6 !non-regularized standard k-tau SST
+
+C     Wall distance function:
+c     use w_id = 2 for wallfunctions      
+c      w_id = 0                  ! user specified
+c      w_id = 1 ! cheap_dist (path to wall, may work better for periodic boundaries)
+      w_id = 2 ! distf (coordinate difference, provides smoother function)
+      
+      call rans_init(ifld_k,ifld_omega,ifcoeffs,coeffs,w_id,wd,m_id)
+
+c     Buoyancy turbulent heat flux models
+c      buo_id = 0   !No model
+      buo_id = 1   !SGDH
+c      buo_id = 2   !GGDH
+      
+      gvec(1) = 0.0
+      gvec(2) = -1.0
+      gvec(3) = 0.0
+      call rans_buo_init(buo_id,gvec)
+
+c      param(59)=1
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine usrdat3()  ! This routine to modify mesh coordinates
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+
+      call count_boundaries
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine analysis
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'RANS_BUO'
+
+      real ptA(3), ptB(3)
+      real Nu(lx1,ly1,lz1,lelv)
+      real uv(lx1,ly1,lz1,lelv)
+      real uT(lx1,ly1,lz1,lelv)
+      real vT(lx1,ly1,lz1,lelv)
+
+      integer ie,ifc,ix,iy,iz,i
+      integer kx1,kx2,ky1,ky2,kz1,kz2
+
+      real usn(3)
+      real Nuss,tx,ty,tz
+      integer nxyz,ntot
+
+      real xflux(lx1*ly1*lz1),yflux(lx1*ly1*lz1)
+      real zflux(lx1*ly1*lz1)
+      real mu_t
+      real rans_mut
+
+      character*3 bcw
+
+      call eval_tgrad
+      call comp_sij
+
+      nxyz=lx1*ly1*lz1
+      ntot=nxyz*nelt
+
+      do ie=1,nelv
+        if(.not.ifggdh)call flux_sgdh_compute(xflux,yflux,zflux,ie)
+        if(ifggdh)call flux_ggdh_compute(xflux,yflux,zflux,ie)
+        do i=1,lx1*ly1*lz1
+          mu_t = rans_mut(i,1,1,ie)
+          if(.not.ifggdh)then
+            uT(i,1,1,ie) = (mu_t/Prt_buo)*xflux(i)
+            vT(i,1,1,ie) = (mu_t/Prt_buo)*yflux(i)
+          else
+            uT(i,1,1,ie) = mu_t*xflux(i)
+            vT(i,1,1,ie) = mu_t*yflux(i)
+          endif
+          uv(i,1,1,ie) = -mu_t*sij(i,ie,3)
+        enddo
+      enddo
+
+      do ie=1,nelv
+        do ifc = 1,2*ndim
+          bcw = cbc(ifc,ie,1)
+          if(bcw .eq. 'W  ')then
+            CALL FACIND (KX1,KX2,KY1,KY2,KZ1,KZ2,lx1,ly1,lz1,ifc)
+            do iz = kz1,kz2
+              do iy = ky1,ky2
+                do ix = kx1,kx2
+                  call getSnormal(usn,ix,iy,iz,ifc,ie)
+                  tx = tx_buo(ix,iy,iz,ie)
+                  ty = ty_buo(ix,iy,iz,ie)
+                  tz = tz_buo(ix,iy,iz,ie)
+                  Nuss = tx*usn(1)+ty*usn(2)
+                  if(if3d) Nuss = Nuss+tz*usn(3)
+                  Nu(ix,iy,iz,ie) = Nuss
+                enddo
+              enddo
+            enddo
+          endif
+        enddo
+      enddo
+
+      !store Nu in pressure field
+      call copy(pr,Nu,ntot)
+
+      !Hot wall
+      ptA(1) = 0.0
+      ptA(2) = 0.0
+      ptA(3) = 0.0
+      ptB(1) = 0.0
+      ptB(2) = 1.0
+      ptB(3) = 0.0
+      call lineplot(ptA,ptB,10001)
+
+      !cold wall
+      ptA(1) = 1.0
+      ptA(2) = 0.0
+      ptA(3) = 0.0
+      ptB(1) = 1.0
+      ptB(2) = 1.0
+      ptB(3) = 0.0
+      call lineplot(ptA,ptB,10001)
+
+      !Bottom wall
+      ptA(1) = 0.0
+      ptA(2) = 0.0
+      ptA(3) = 0.0
+      ptB(1) = 1.0
+      ptB(2) = 0.0
+      ptB(3) = 0.0
+      call lineplot(ptA,ptB,10001)
+
+      !Top wall
+      ptA(1) = 0.0
+      ptA(2) = 1.0
+      ptA(3) = 0.0
+      ptB(1) = 1.0
+      ptB(2) = 1.0
+      ptB(3) = 0.0
+      call lineplot(ptA,ptB,10001)
+
+      !Mid-width
+      ptA(1) = 0.5
+      ptA(2) = 0.0
+      ptA(3) = 0.0
+      ptB(1) = 0.5
+      ptB(2) = 1.0
+      ptB(3) = 0.0
+      call lineplot(ptA,ptB,10001)
+
+      !Mid-height - uv,uT,vT
+      call copy(vx,uv,ntot)
+      call copy(t(1,1,1,1,1),uT,ntot)
+      call copy(t(1,1,1,1,2),vT,ntot)
+      ptA(1) = 0.0
+      ptA(2) = 0.5
+      ptA(3) = 0.0
+      ptB(1) = 1.0
+      ptB(2) = 0.5
+      ptB(3) = 0.0
+      call lineplot(ptA,ptB,10001)
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine initprof(y,Uin,Kin)
+c
+c Compute temperature + species using cubic splines
+c   f(y) = s(i) + sb(i)*(y-SYY(i)) + sc(i)*(y-SYY(i))**2 + sd(i)*(y-SYY(i))**3
+
+      include 'SPLINE'
+
+      real y, Uin, Kin, Oin
+
+      ii = 0
+      do i=1,npts-1
+        if (y.ge.SYY(i) .and. y.lt.SYY(i+1)) ii=i
+      enddo
+      if(abs(y-SYY(npts)).lt.1e-7) ii=npts
+
+      if (ii.le.0) then
+        write(*,*) 'Error in init_mean: ii= ', ii,'>npts=', npts, y
+        call exitt
+      endif
+
+      Uin=fU(ii) + sbU(ii)*(y-SYY(ii))
+     *     +scU(ii)*(y-SYY(ii))**2+sdU(ii)*(y-SYY(ii))**3
+
+      if (y.ge.SYY(npts)) Uin=fU(npts)
+
+      Kin=fK(ii) + sbK(ii)*(y-SYY(ii))
+     *     +scK(ii)*(y-SYY(ii))**2+sdK(ii)*(y-SYY(ii))**3
+
+      if (y.ge.SYY(npts)) Kin=fK(npts)
+      return
+      end
+      
+c---------------------------------------------------------------------
+      subroutine getTempProf
+
+      include 'SPLINE'
+
+      real YY(npts),ZZ(npts)
+
+      if (nid.eq.0) then
+         write(*,'(A,I4)')      'npts  = ', npts
+         write(*,'(A,1pE10.2)') 'ymin = ', ymin
+         write(*,'(A,1pE10.2)') 'ymax = ', ymax
+         write(*,'(A,1pE10.2)') 'ymin_turb = ', ymin_turb
+         write(*,'(A,1pE10.2)') 'ymax_turb = ', ymax_turb
+      endif
+
+C  Read in the 1-D profile computed by turbChan2D
+C        velocity       in fU
+C        kinetic energy in fK
+C        omega          in fO
+
+      open(unit=100,file='exp_hwall.dat',status='old')
+      read(100, *)     ! skip the header
+      do i=1,npts
+        read(100,*)  YY(i), fU(i), fK(i)
+c        write(*,*)  YY(i), fU(i), fK(i)
+      enddo
+      close(100)
+
+C  compute spline coefficients for U
+      do i=1,npts
+        ZZ(i)  = fU(i)
+        SYY(i) = YY(i)
+      enddo
+      call spline (npts, YY, ZZ, sbU, scU, sdU)
+
+C  compute spline coefficients for T
+      do i=1,npts
+        ZZ(i) = fK(i)
+      enddo
+      call spline (npts, YY, ZZ, sbK, scK, sdK)
+
+      return
+      end
+
+c-----------------------------------------------------------------------
+      subroutine spline (n, x, y, b, c, d)
+
+c  the coefficients b(i), c(i), and d(i), i=1,2,...,n are computed
+c  for a cubic interpolating spline
+c
+c    s(x) = y(i) + b(i)*(x-x(i)) + c(i)*(x-x(i))**2 + d(i)*(x-x(i))**3
+c
+c    for  x(i) .le. x .le. x(i+1)
+c
+c  input.. 
+c
+c    n = the number of data points or knots (n.ge.2)
+c    x = the abscissas of the knots in strictly increasing order
+c    y = the ordinates of the knots
+c
+c  output..
+c
+c    b, c, d  = arrays of spline coefficients as defined above.
+c
+c  using  p  to denote differentiation,
+c
+c    y(i) = s(x(i))
+c    b(i) = sp(x(i))
+c    c(i) = spp(x(i))/2
+c    d(i) = sppp(x(i))/6  (derivative from the right)
+c
+c  the accompanying function subprogram  seval  can be used
+c  to evaluate the spline.
+
+      integer n
+      real x(n), y(n), b(n), c(n), d(n)
+
+      integer nm1, ib, i
+      real t
+
+C      do i = 1, n
+C        if (nid.eq.0) write(41,'(1p2E13.5)') x(i), y(i)
+C      enddo
+C      if (nid.eq.0) write(41,'(A)') '&'
+
+      nm1 = n-1
+      if ( n .lt. 2 ) return
+      if ( n .lt. 3 ) go to 50
+
+c  set up tridiagonal system
+c  b = diagonal, d = offdiagonal, c = right hand side.
+
+      d(1) = x(2) - x(1)
+      c(2) = (y(2) - y(1))/d(1)
+      do 10 i = 2, nm1
+         d(i) = x(i+1) - x(i)
+         b(i) = 2.*(d(i-1) + d(i))
+         c(i+1) = (y(i+1) - y(i))/d(i)
+         c(i) = c(i+1) - c(i)
+   10 continue
+
+c  end conditions.  third derivatives at  x(1)  and  x(n)
+c  obtained from divided differences
+
+      b(1) = -d(1)
+      b(n) = -d(n-1)
+      c(1) = 0.0
+      c(n) = 0.0
+      if ( n .eq. 3 ) go to 15
+      c(1) = c(3)/(x(4)-x(2)) - c(2)/(x(3)-x(1))
+      c(n) = c(n-1)/(x(n)-x(n-2)) - c(n-2)/(x(n-1)-x(n-3))
+      c(1) = c(1)*d(1)**2/(x(4)-x(1))
+      c(n) = -c(n)*d(n-1)**2/(x(n)-x(n-3))
+
+c  forward elimination
+
+   15 do 20 i = 2, n
+         t = d(i-1)/b(i-1)
+         b(i) = b(i) - t*d(i-1)
+         c(i) = c(i) - t*c(i-1)
+   20 continue
+
+c  back substitution
+
+      c(n) = c(n)/b(n)
+      do 30 ib = 1, nm1
+         i = n-ib
+         c(i) = (c(i) - d(i)*c(i+1))/b(i)
+   30 continue
+
+c  c(i) is now the sigma(i) of the text
+c
+c  compute polynomial coefficients
+
+      b(n) = (y(n) - y(nm1))/d(nm1) + d(nm1)*(c(nm1) + 2.*c(n))
+      do 40 i = 1, nm1
+         b(i) = (y(i+1) - y(i))/d(i) - d(i)*(c(i+1) + 2.*c(i))
+         d(i) = (c(i+1) - c(i))/d(i)
+         c(i) = 3.*c(i)
+   40 continue
+      c(n) = 3.0*c(n)
+      d(n) = d(n-1)
+      return
+
+   50 b(1) = (y(2)-y(1))/(x(2)-x(1))
+      c(1) = 0.0
+      d(1) = 0.0
+      b(2) = b(1)
+      c(2) = 0.0
+      d(2) = 0.0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine replace_avg(id)
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+      include 'AVG'
+
+      common /tempf/ vxt(lx1,ly1,lz1,lelt),
+     $               vyt(lx1,ly1,lz1,lelt), 
+     $               vzt(lx1,ly1,lz1,lelt), 
+     $               tt(lx1,ly1,lz1,lelt,ldimt) 
+      real vxt,vyt,vzt,tt
+
+      integer id,ntot,nxyz
+      real rans_mut
+
+      nxyz=lx1*ly1*lz1
+      ntot=nxyz*nelt
+
+      if(id.eq.1)then
+        call copy(vxt,vx,ntot)
+        call copy(vyt,vy,ntot)
+        if(if3d)call copy(vzt,vz,ntot)
+        call copy(tt,t,ntot*3)
+
+        call copy(vx,uavg,ntot)
+        call copy(vy,vavg,ntot)
+        if(if3d)call copy(vz,wavg,ntot)
+        call copy(t,tavg,ntot*3)
+      endif
+
+      if(id.eq.2)then
+        call copy(vx,vxt,ntot)
+        call copy(vy,vyt,ntot)
+        if(if3d)call copy(vz,vzt,ntot)
+        call copy(t,tt,ntot*3)
+      endif
+
+      return
+      end
