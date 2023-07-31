@@ -869,7 +869,7 @@ c--------------------------------------------------------------
       call rzero(grs,ntot*6)
 
       !TO DO: delete call from above
-      call comp_sij
+      call comp_sij_buo
 
       do ie=1,lelt
         call compute_aniso_tensor(s_ij,ie)
@@ -1003,7 +1003,7 @@ c--------------------------------------------------------------
       return
       end
 c--------------------------------------------------------------      
-      subroutine comp_sij
+      subroutine comp_sij_buo
       implicit none
       include 'SIZE'
       include 'TOTAL'

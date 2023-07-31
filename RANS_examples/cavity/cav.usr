@@ -371,7 +371,7 @@ c-----------------------------------------------------------------------
       character*3 bcw
 
       call eval_tgrad
-      call comp_sij
+      call comp_sij_buo
 
       nxyz=lx1*ly1*lz1
       ntot=nxyz*nelt
