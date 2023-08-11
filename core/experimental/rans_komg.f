@@ -364,7 +364,7 @@ c          endif
 c          mu_t = max(mu_t, mu_min)
 
           G_k0= mu_t*g(i) - ( rho*k + mu_t*div(i) )*extra_prod
-          G_k = G_k0 ! min(G_k0, 10.*Y_k*k)
+          G_k = min(G_k0, 10.*Y_k*k)
           
 c Compute Source term for k
 
