@@ -14,11 +14,11 @@ c--------------------------------------------------------------
       if(id.eq.1) ifsgdh = .true.
       if(id.eq.2) ifggdh = .true.
 
-      if(ifaxis.and.id.ne.0)then
-        if(nid.eq.0)write(6,*)
-     &   "ERROR:Axisymmetric BC not yet supported with Buoyancy"
-        call exitt
-      endif
+      ! if(ifaxis.and.id.ne.0)then
+      !   if(nid.eq.0)write(6,*)
+      ! &   "ERROR:Axisymmetric BC not yet supported with Buoyancy"
+      !   call exitt
+      ! endif
 
       if(.not.ifrans_ktau_stndrd .and.
      &   .not.ifrans_komg_stndrd .and.
