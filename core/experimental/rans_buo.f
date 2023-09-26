@@ -774,10 +774,11 @@ c--------------------------------------------------------------
           yflux(i) = Cs_buo*(s12*gtx+s22*gty+s23*gtz)
           zflux(i) = Cs_buo*(s13*gtx+s23*gty+s33*gtz)
         elseif(ifaxis)then  !To Do
-          if(nio.eq.0)then
-            write(*,*)"Axisymmetric not yet supported with Buoyancy"
-          endif
-          call exitt
+          s11 = (2./3.)*rho - mu_t0*sij(i,ie,1)
+          s22 = (2./3.)*rho - mu_t0*sij(i,ie,2)
+          s12 = -mu_t0*sij(i,ie,4)
+          xflux(i) = Cs_buo*(s11*gtx+s12*gty)
+          yflux(i) = Cs_buo*(s12*gtx+s22*gty)
         else
           s11 = (2./3.)*rho - mu_t0*sij(i,ie,1)
           s22 = (2./3.)*rho - mu_t0*sij(i,ie,2)
