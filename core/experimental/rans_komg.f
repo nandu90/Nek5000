@@ -683,7 +683,7 @@ c          endif
 c          mu_t = max(mu_t, mu_min)
 
           G_k0= mu_t*g(i) - ( rho*k + mu_t*div(i) )*extra_prod
-          G_k = G_k0 ! min(G_k0, 10.*Y_k*k)
+          G_k = min(G_k0, 10.*Y_k*k)
 
 c Compute Source term for k
 
@@ -707,7 +707,7 @@ c Compute dissipation of omega
 
           x_w = abs((sum_xx)/(betainf_str*omega + tiny)**3)
           f_b = 1.0
-          if(if3d) f_b = (1.0 + fb_c1*x_w)/(1.0 + fb_c2*x_w)
+c          if(if3d) f_b = (1.0 + fb_c1*x_w)/(1.0 + fb_c2*x_w)
 
           omw = f_omegb(i,1,1,e)
           omp = t(i,1,1,e,ifld_omega-1)
