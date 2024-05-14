@@ -300,6 +300,9 @@ c---------------------------------------------------------------------
       save icalld
       data icalld /0/
 
+      real asum
+      logical ifpmean
+
       method_ut2 = 1 !tomboulides
       method_ut2 = 2 !saini
       
@@ -326,10 +329,24 @@ c---------------------------------------------------------------------
 !     Get the surface normal
       call getSnormal (usn,ix,iy,iz,iside,e)
 
-!     Get the tangent of pressure gradient 
-      dpx = dpdx(ix,iy,iz,e)
-      dpy = dpdy(ix,iy,iz,e)
-      dpz = dpdz(ix,iy,iz,e)
+!     Compute using mean of pressure gradient on face      
+      ifpmean = .true.
+      ! ifpmean = .false.
+
+      if(.not.ifpmean)then
+        dpx = dpdx(ix,iy,iz,e)
+        dpy = dpdy(ix,iy,iz,e)
+        dpz = dpdz(ix,iy,iz,e)
+      else
+        call fcsum2(dpx,asum,dpdx,e,iside)
+        call fcsum2(dpy,asum,dpdy,e,iside)
+        call fcsum2(dpz,asum,dpdz,e,iside)
+        dpx = dpx/asum
+        dpy = dpy/asum
+        dpz = dpz/asum
+      endif
+
+!     Get the tangent of pressure gradient
       if(if3d)then !Pressure normal
          dpn = dpx*usn(1)+dpy*usn(2)+dpz*usn(3)
       else
@@ -360,14 +377,14 @@ c---------------------------------------------------------------------
 !     Get the pressure velocity scale
       up3 = visc*dpw/dens
       ut3 = utold(ix,iy,iz,e)**3.0
-      if(up3/ut3 .gt. 0.001)then
+      ! if(up3/ut3 .gt. 0.001)then
          up = up3**(1./3.)
-      else
-         up = 0.0
-         dpt1 = 0.0
-         dpt2 = 0.0
-         dpw = 0.0
-      endif
+      ! else
+      !    up = 0.0
+      !    dpt1 = 0.0
+      !    dpt2 = 0.0
+      !    dpw = 0.0
+      ! endif
       
 !     Get the tangential velocity
 !     Velocity from previous time step should be tangential
