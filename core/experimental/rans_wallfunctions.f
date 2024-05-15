@@ -377,14 +377,14 @@ c---------------------------------------------------------------------
 !     Get the pressure velocity scale
       up3 = visc*dpw/dens
       ut3 = utold(ix,iy,iz,e)**3.0
-      ! if(up3/ut3 .gt. 0.001)then
+      if(up3/ut3 .gt. 1e-6)then
          up = up3**(1./3.)
-      ! else
-      !    up = 0.0
-      !    dpt1 = 0.0
-      !    dpt2 = 0.0
-      !    dpw = 0.0
-      ! endif
+      else
+         up = 0.0
+         dpt1 = 0.0
+         dpt2 = 0.0
+         dpw = 0.0
+      endif
       
 !     Get the tangential velocity
 !     Velocity from previous time step should be tangential
