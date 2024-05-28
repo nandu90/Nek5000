@@ -330,8 +330,8 @@ c---------------------------------------------------------------------
       call getSnormal (usn,ix,iy,iz,iside,e)
 
 !     Compute using mean of pressure gradient on face      
-      ifpmean = .true.
-      ! ifpmean = .false.
+      !ifpmean = .true.
+      ifpmean = .false.
 
       if(.not.ifpmean)then
         dpx = dpdx(ix,iy,iz,e)
