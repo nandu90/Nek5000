@@ -301,7 +301,7 @@ c---------------------------------------------------------------------
       data icalld /0/
 
       real asum
-      logical ifpmean
+      logical ifpfilter
 
       method_ut2 = 1 !tomboulides
       method_ut2 = 2 !saini
@@ -330,20 +330,31 @@ c---------------------------------------------------------------------
       call getSnormal (usn,ix,iy,iz,iside,e)
 
 !     Compute using mean of pressure gradient on face      
-      !ifpmean = .true.
-      ifpmean = .false.
+      ifpfilter = .true.
+      ! ifpfilter = .false.
 
-      if(.not.ifpmean)then
+      if(.not.ifpfilter)then
         dpx = dpdx(ix,iy,iz,e)
         dpy = dpdy(ix,iy,iz,e)
         dpz = dpdz(ix,iy,iz,e)
       else
-        call fcsum2(dpx,asum,dpdx,e,iside)
-        call fcsum2(dpy,asum,dpdy,e,iside)
-        call fcsum2(dpz,asum,dpdz,e,iside)
-        dpx = dpx/asum
-        dpy = dpy/asum
-        dpz = dpz/asum
+        if(ix*iy*iz*e .eq. 1)then
+          call faceFilter(dpdx)
+          call faceFilter(dpdy)
+          if(if3d) call faceFilter(dpdz)
+        endif
+        ! With face average (not recommended)
+        ! compromises spectral accuracy
+        ! call fcsum2(dpx,asum,dpdx,e,iside)
+        ! call fcsum2(dpy,asum,dpdy,e,iside)
+        ! call fcsum2(dpz,asum,dpdz,e,iside)
+        ! dpx = dpx/asum
+        ! dpy = dpy/asum
+        ! dpz = dpz/asum
+
+        dpx = dpdx(ix,iy,iz,e)
+        dpy = dpdy(ix,iy,iz,e)
+        dpz = dpdz(ix,iy,iz,e)
       endif
 
 !     Get the tangent of pressure gradient
@@ -1747,3 +1758,101 @@ c-----------------------------------------------------------------------
       return
       end
 C-----------------------------------------------------------------------
+      subroutine faceFilter(phi)
+      implicit none
+      include 'SIZE'
+      include 'TOTAL'
+
+      real phi(1)
+
+      common /facearrs/ facearr(lx1*lz1,2*ldim,lelt)
+      real facearr
+
+      real intv(lx1,lx1)
+      save intv
+
+      common /wftemp0/ wk1(lx1,lx1,lx1,lelt),
+     $                 wk2(lx1,lx1,lx1),
+     $                 intt(lx1,lx1)
+      real wk1,wk2,intt
+
+      integer ncut
+      real wght
+
+      integer icalld
+      save icalld
+      data icalld /0/
+
+      real pmax
+
+      ncut = 1
+      wght = 10
+
+      if(icalld.eq.0)then
+        !Build 1D filter
+        icalld = 1
+        call build_new_filter(intv,zgm1,lx1,ncut,wght,nio)
+      endif
+
+      call full2face(facearr,phi)
+
+      call filterface(facearr,intv,lx1,lz1,wk1,wk2,intt,pmax)
+
+      call face2full(phi,facearr)
+
+      return
+      end
+C-----------------------------------------------------------------------
+      subroutine filterface(v,f,nx,nz,w1,w2,ft,dmax)
+      implicit none
+      include 'SIZE'
+      include 'INPUT'
+      include 'TSTEP'
+
+      integer nx,nz
+      real v(nx*nz,2*ldim,1),w1(1),w2(1)
+
+      real f(nx,nx),ft(nx,nx)
+
+      integer e,fnxyz,ifc
+      real smax,dmax
+      real vlamax
+
+      call transpose(ft,nx,f,nx)
+
+      fnxyz = nx*nz
+      dmax = 0.
+
+      if(if3d)then
+        do e=1,nelt
+          do ifc = 1,2*ndim
+            if(cbc(ifc,e,1).eq.'shl')then
+              call copy(w1,v(1,ifc,e),fnxyz)
+              call mxm(f,nx,w1,nx,w2,nx)
+              call mxm(w2,nx,ft,nx,w1,nx)
+
+              call sub3(w2,v(1,ifc,e),w1,fnxyz)
+              call copy(v(1,ifc,e),w1,fnxyz)
+              smax = vlamax(w2,fnxyz)
+              dmax = max(dmax,abs(smax))
+            endif
+          enddo
+        enddo
+      else
+        do e=1,nelt
+          do ifc=1,2*ndim
+            if(cbc(ifc,e,1).eq.'shl')then
+              call copy(w1,v(1,ifc,e),fnxyz)
+              call mxm(f,nx,w1,nx,w2,1)
+
+              call sub3(w1,v(1,ifc,e),w2,fnxyz)
+              call copy(v(1,ifc,e),w2,fnxyz)
+              smax = vlamax(w1,fnxyz)
+              dmax = max(dmax,abs(smax))
+            endif
+          enddo
+        enddo
+      endif
+
+      return
+      end
