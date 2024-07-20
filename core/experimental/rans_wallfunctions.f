@@ -301,7 +301,6 @@ c---------------------------------------------------------------------
       data icalld /0/
 
       real asum
-      logical ifpfilter
 
       method_ut2 = 1 !tomboulides
       method_ut2 = 2 !saini
@@ -329,33 +328,9 @@ c---------------------------------------------------------------------
 !     Get the surface normal
       call getSnormal (usn,ix,iy,iz,iside,e)
 
-!     Compute using mean of pressure gradient on face      
-      ifpfilter = .true.
-      ! ifpfilter = .false.
-
-      if(.not.ifpfilter)then
-        dpx = dpdx(ix,iy,iz,e)
-        dpy = dpdy(ix,iy,iz,e)
-        dpz = dpdz(ix,iy,iz,e)
-      else
-        if(ix*iy*iz*e .eq. 1)then
-          call faceFilter(dpdx)
-          call faceFilter(dpdy)
-          if(if3d) call faceFilter(dpdz)
-        endif
-        ! With face average (not recommended)
-        ! compromises spectral accuracy
-        ! call fcsum2(dpx,asum,dpdx,e,iside)
-        ! call fcsum2(dpy,asum,dpdy,e,iside)
-        ! call fcsum2(dpz,asum,dpdz,e,iside)
-        ! dpx = dpx/asum
-        ! dpy = dpy/asum
-        ! dpz = dpz/asum
-
-        dpx = dpdx(ix,iy,iz,e)
-        dpy = dpdy(ix,iy,iz,e)
-        dpz = dpdz(ix,iy,iz,e)
-      endif
+      dpx = dpdx(ix,iy,iz,e)
+      dpy = dpdy(ix,iy,iz,e)
+      dpz = dpdz(ix,iy,iz,e)
 
 !     Get the tangent of pressure gradient
       if(if3d)then !Pressure normal
@@ -1758,7 +1733,7 @@ c-----------------------------------------------------------------------
       return
       end
 C-----------------------------------------------------------------------
-      subroutine faceFilter(phi)
+      subroutine faceFilter(phi,ncut,wght)
       implicit none
       include 'SIZE'
       include 'TOTAL'
@@ -1785,10 +1760,10 @@ C-----------------------------------------------------------------------
 
       real pmax
 
-      ncut = 1
-      wght = 10
-
       if(icalld.eq.0)then
+        ifdgfld(1) = .true.
+        call dg_setup
+        ifdgfld(1) = .false.
         !Build 1D filter
         icalld = 1
         call build_new_filter(intv,zgm1,lx1,ncut,wght,nio)
@@ -1798,7 +1773,25 @@ C-----------------------------------------------------------------------
 
       call filterface(facearr,intv,lx1,lz1,wk1,wk2,intt,pmax)
 
-      call face2full(phi,facearr)
+      call face2fullcopy(phi,facearr)
+
+      return
+      end
+C-----------------------------------------------------------------------
+      subroutine face2fullcopy(vol_ary,faceary)
+      include 'SIZE'
+      include 'TOTAL'
+
+      real     faceary(lx1*lz1,2*ldim,lelt)
+      real     vol_ary(lx1,ly1,lz1,lelt)
+      integer  i,j
+
+      n=lx1*ly1*lz1*nelt
+
+      do j=1,ndg_facex
+        i=dg_face(j)
+        vol_ary(i,1,1,1) = faceary(j,1,1)
+      enddo
 
       return
       end
