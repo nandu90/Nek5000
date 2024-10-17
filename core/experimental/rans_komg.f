@@ -15,6 +15,8 @@
          if(ifrans_ktau_stndrd)      call rans_ktau_stndrd_eddy
          if(ifrans_ktau_lowRe)       call rans_ktau_lowRe_eddy
          if(ifrans_ktauSST_stndrd)   call rans_ktauSST_stndrd_eddy
+         if(ifrans_ktauSST_DES)      call rans_ktauSST_DES_eddy
+         if(ifrans_ktauSST_IDDES)    call rans_ktauSST_IDDES_eddy
       endif
 
       ifldla = ifield
@@ -84,6 +86,8 @@ c-----------------------------------------------------------------------
          if(ifrans_ktau_stndrd)      call rans_ktau_stndrd_compute
          if(ifrans_ktau_lowRe)       call rans_ktau_lowRe_compute
          if(ifrans_ktauSST_stndrd)   call rans_ktauSST_stndrd_compute
+         if(ifrans_ktauSST_DES)      call rans_ktauSST_DES_compute
+         if(ifrans_ktauSST_IDDES)      call rans_ktauSST_IDDES_compute
          ifevalsrc = .false.
       endif
 
@@ -111,6 +115,8 @@ c-----------------------------------------------------------------------
          if(ifrans_ktau_stndrd)      call rans_ktau_stndrd_compute
          if(ifrans_ktau_lowRe)       call rans_ktau_lowRe_compute
          if(ifrans_ktauSST_stndrd)   call rans_ktauSST_stndrd_compute
+         if(ifrans_ktauSST_DES)      call rans_ktauSST_DES_compute
+         if(ifrans_ktauSST_IDDES)    call rans_ktauSST_IDDES_compute
          ifevalsrc = .false.
       endif
 
@@ -138,6 +144,8 @@ c-----------------------------------------------------------------------
          if(ifrans_ktau_stndrd)      call rans_ktau_stndrd_compute
          if(ifrans_ktau_lowRe)       call rans_ktau_lowRe_compute
          if(ifrans_ktauSST_stndrd)   call rans_ktauSST_stndrd_compute
+         if(ifrans_ktauSST_DES)      call rans_ktauSST_DES_compute
+         if(ifrans_ktauSST_IDDES)    call rans_ktauSST_IDDES_compute
          ifevalsrc = .false.
       endif
 
@@ -165,6 +173,8 @@ c-----------------------------------------------------------------------
          if(ifrans_ktau_stndrd)      call rans_ktau_stndrd_compute
          if(ifrans_ktau_lowRe)       call rans_ktau_lowRe_compute
          if(ifrans_ktauSST_stndrd)   call rans_ktauSST_stndrd_compute
+         if(ifrans_ktauSST_DES)      call rans_ktauSST_DES_compute
+         if(ifrans_ktauSST_IDDES)    call rans_ktauSST_IDDES_compute
          ifevalsrc = .false.
       endif
 
@@ -707,7 +717,7 @@ c Compute dissipation of omega
 
           x_w = abs((sum_xx)/(betainf_str*omega + tiny)**3)
           f_b = 1.0
-c          if(if3d) f_b = (1.0 + fb_c1*x_w)/(1.0 + fb_c2*x_w)
+          if(if3d) f_b = (1.0 + fb_c1*x_w)/(1.0 + fb_c2*x_w)
 
           omw = f_omegb(i,1,1,e)
           omp = t(i,1,1,e,ifld_omega-1)
@@ -962,30 +972,38 @@ c calculate F2 based on arg2
           yw     = ywd  (i,1,1,e)
           ywm1   = ywdm1(i,1,1,e)
           ywm2   = ywm1*ywm1
-          arg2_1 =     sqrt(k) * ywm1 / omega / beta_str
-          arg2_2 =          500.0*nu * ywm2 / omega
-          arg2   = 2.0*arg2_1
-          argF2  =     sqrt(k)*yw/(500.0*nu*beta_str)
-          if(2.0*argF2 .le. 1.0) arg2   = arg2_2
-          Fun2   = tanh(arg2 * arg2)
+          crit   = yw*sqrt(k)/(500.0*nu*beta_str)
+
+          arg1_1 = 500.0*beta1/6.0
+          Fun2   = 1.0
+          if(crit.gt.tiny) then
+             arg2_1 =     sqrt(k) * ywm1 / omega / beta_str
+             arg2_2 =          500.0*nu * ywm2 / omega
+             arg1_1 = max (    arg2_1, arg2_2)
+             arg2   = max (2.0*arg2_1, arg2_2)
+             Fun2   = tanh(arg2 * arg2)
+          endif
 
 c calculate F1 based on arg1
 
           tinySST= 1.0e-10
-          arg1_1 = arg2_1
-          if(    argF2 .le. 1.0) arg1_1   = arg2_2
-          arg1_2 =     4.0 * rho * sigom2 * k * ywm2 / tinySST
-          argF1  = tinySST * omega /(2.0 * rho * sigom2)
-          if(xk .gt. argF1) arg1_2 =   2.0 * k * omega * ywm2 / xk
-          arg1   = min(    arg1_1, arg1_2)
-          Fun1   = tanh(arg1 * arg1 * arg1 * arg1)
+
+          Fun1   = 1.0
+          if(yw.gt.tiny) then
+             den1_1 = 2.0 * sigom2 * xk/omega
+             den1_2 = tinySST / omega**2
+             arg1_2 = 4.0 * sigom2 * k * ywm2 / max(den1_1,den1_2)
+             arg1   = min(    arg1_1, arg1_2)
+             Fun1   = tanh(arg1 * arg1 * arg1 * arg1)
+          endif
 
 c calculate mu_t
 
-          mu_t   = rho * k/(omega + tiny)
+          mu_t   = rho * k/omega
           argn   = Fun2*St_magn ! this can also be Om_magn
-          if(omega.le.argn/alp1) then
-             mu_t   = rho * alp1 * k/argn
+          if(alp1.le.argn/omega) then
+             mu_t   = 0.0
+             if(argn.ne.0.) mu_t   = rho * alp1 * k/argn
              denom  = argn/ alp1
           else
              denom  = omega
@@ -1036,7 +1054,7 @@ c Compute dissipation of omega
 
 c Compute additional SST term for omega
 
-          S_w = 2.0 * rho * sigom2 * (1.0 - Fun1) * xk / (omega+tiny)
+          S_w = 2.0 * rho * sigom2 * (1.0 - Fun1) * xk / omega
 
           if (ifrans_diag) then
             omgSrc(i,1,1,e) = G_w - Y_w1+ S_w
@@ -1919,7 +1937,12 @@ c
      $                , OiOjSk (lx1*ly1*lz1,lelv)
      $                , DivQ   (lx1*ly1*lz1,lelv)
 
+      common /scr_sst / Fun1arr(lx1,ly1,lz1,lelv)
+     $                , Fun2arr(lx1,ly1,lz1,lelv)
+     $                , vmutarr(lx1,ly1,lz1,lelv)
       integer e
+
+      real mu_t0
 
 c Turbulent viscosity constants
         Pr_t         = coeffs( 1)
@@ -1977,6 +2000,7 @@ c================================
 
       if(iflim_tau.eq.0) call limit_ktau
 
+      iflim_tau =-1 ! limit tau
       do e=1,nelv
 
         call copy   (g,   St_mag2(1,e),       lxyz)
@@ -2002,6 +2026,9 @@ c limits for k, tau
           tau     = t(i,1,1,e,ifld_omega-1) ! Current k & tau    values
           k       = t(i,1,1,e,ifld_k  -1)   ! from previous timestep
 
+          if(iflim_tau.eq.-1) call limit_ktau_test(k,tau
+     $                 ,t(i,1,1,e,ifld_k-1),t(i,1,1,e,ifld_omega-1))
+
           if    (iflim_tau.eq.1) then
 
             if(tau  .lt.0.0) then
@@ -2026,6 +2053,7 @@ c no source terms Sk or S_w are added
 
           St_magn = sqrt(St_mag2(i,e))
           Om_magn = sqrt(Om_mag2(i,e))
+          sum_xx  =      OiOjSk (i,e)
 
 c calculate del k * del tau   / tau  
 
@@ -2042,25 +2070,33 @@ c calculate del k * del tau   / tau
 c calculate F2 based on arg2
 
           yw     = ywd  (i,1,1,e)
-          ywm1   = ywdm1(i,1,1,e)
+          ywm1   = 0.0
+          if(yw.gt.tiny) ywm1 = 1./yw
           ywm2   = ywm1*ywm1
-          arg2_1 =     sqrt(k) * ywm1 * tau / beta_str
-          arg2_2 =    500.0*nu * ywm2 * tau
-          arg2   = 2.0*arg2_1
-          argF2  =     sqrt(k)*yw/(500.0*nu*beta_str)
-          if(2.0*argF2 .le. 1.0) arg2   = arg2_2
-          Fun2   = tanh(arg2 * arg2)
+          crit   = yw*sqrt(k)/(500.0*nu*beta_str)
+
+          arg1_1 = 500.0*beta1/6.0
+          Fun2   = 1.0
+          if(crit.gt.tiny) then
+             arg2_1 =  sqrt(k) * tau * ywm1 / beta_str
+             arg2_2 = 500.0*nu * tau * ywm2
+             arg1_1 = max (    arg2_1, arg2_2)
+             arg2   = max (2.0*arg2_1, arg2_2)
+             Fun2   = tanh(arg2 * arg2)
+          endif
 
 c calculate F1 based on arg1
 
           tinySST= 1.0e-10
-          arg1_1 = arg2_1
-          if(    argF2 .le. 1.0) arg1_1   = arg2_2
-          arg1_2 =     4.0 * rho * sigom2 * k * ywm2 / tinySST
-          argF1  = tinySST * tau /(2.0 * rho * sigom2)
-          if(xk .gt. argF1) arg1_2 =   2.0 * k * tau * ywm2 / xk
-          arg1   = min(    arg1_1, arg1_2)
-          Fun1   = tanh(arg1 * arg1 * arg1 * arg1)
+
+          Fun1   = 1.0
+          if(yw.gt.tiny) then
+             den1_1 = 2.0 * sigom2 * xk/(tau+tiny)
+             den1_2 = tinySST * tau**2
+             arg1_2 = 4.0 * sigom2 * k * ywm2 / max(den1_1,den1_2)
+             arg1   = min(    arg1_1, arg1_2)
+             Fun1   = tanh(arg1 * arg1 * arg1 * arg1)
+          endif
 
 c calculate mu_t
 
@@ -2084,7 +2120,7 @@ c          mu_t = max(mu_t, mu_min)
 c Compute Y_k = dissipation of k
 
           Y_k = 0.
-          if(tau.gt.0) Y_k = rho * beta_str / tau
+          if(tau.gt.0) Y_k = rho * beta_str / (tau + tiny)
 
 c Compute G_k = production of  k and limit it to 10*Y_k (the dissipation of k)
 
@@ -2112,9 +2148,9 @@ c Compute production of omega
           sigom = Fun1 * sigom1 + (1.0 - Fun1) * sigom2
 
           tau2 = tau*tau
-          G_w0 = rho*tau2*gamma*(g(i)-(div(i)+denom)*extra_prod)
+          G_w0 = rho*tau *gamma*(tau*g(i)-(1.+div(i)*tau)*extra_prod)
      $          *Rfact
-          G_wp = rho*tau *gamma*(g(i)-(div(i)+denom)*extra_prod)
+          G_wp = rho     *gamma*(tau*g(i)-(1.+div(i)*tau)*extra_prod)
      $          *Rfact
           G_w =-G_w0 !-min(G_w0, 10.0*Y_w0)
 
@@ -2125,12 +2161,12 @@ c Compute dissipation of omega
 
 c Compute additional SST term for tau
 
-          S_w0=-2.0 * rho * sigom2 * (1.0 - Fun1)      * tau * Rfact
+          S_w0=-2.0 * rho * sigom2 * (1.0 - Fun1) * xk       * Rfact
           S_w =-2.0 * rho * sigom2 * (1.0 - Fun1) * xk * tau * Rfact
 
 c Compute Source term for omega
 
-          S_tau = 8.0*mu   *xtq * Rfact
+          S_tau = 8.0*mul(i,1,1,e) *xtq * Rfact
           S_tau = min(S_tau, 8.*beta/3.)
           S_taup= 8.0*rho*k*xtq * Rfact*sigom
 
@@ -2150,6 +2186,10 @@ c Compute Source term for omega
           mut  (i,1,1,e)   = mu_t
           mutsk(i,1,1,e)   = mu_t * sigk
           mutso(i,1,1,e)   = mu_t * sigom
+
+          Fun1arr(i,1,1,e) = Fun1
+          Fun2arr(i,1,1,e) = Fun2
+          vmutarr(i,1,1,e) = mut  (i,1,1,e)
          
         enddo
 
@@ -2192,7 +2232,7 @@ c
       logical ifcoeffs,ifransD
 
       character*3 bcw
-      character*36 mname(7)
+      character*36 mname(9)
 
       data mname
      &/'regularized standard k-omega        '
@@ -2201,7 +2241,9 @@ c
      &,'non-regularized standard k-omega    '
      &,'standard k-tau                      '
      &,'low-Re   k-tau                      '
-     &,'standard k-tau SST                  '/
+     &,'standard k-tau SST                  '
+     &,'k-tau SST DES                       '
+     &,'k-tau SST IDDES                     '/
 
       n=nx1*ny1*nz1*nelv
 
@@ -2220,6 +2262,8 @@ c
       ifrans_ktau_stndrd       = .FALSE.
       ifrans_ktau_lowRe        = .FALSE.
       ifrans_ktauSST_stndrd    = .FALSE.
+      ifrans_ktauSST_DES       = .FALSE.
+      ifrans_ktauSST_IDDES     = .FALSE.
       if(model_id .eq.0) ifrans_komg_stndrd          = .TRUE.
       if(model_id .eq.1) ifrans_komg_lowRe           = .TRUE.
       if(model_id .eq.2) ifrans_komgSST_stndrd       = .TRUE.
@@ -2227,6 +2271,8 @@ c
       if(model_id .eq.4) ifrans_ktau_stndrd          = .TRUE.
       if(model_id .eq.5) ifrans_ktau_lowRe           = .TRUE.
       if(model_id .eq.6) ifrans_ktauSST_stndrd       = .TRUE.
+      if(model_id .eq.7) ifrans_ktauSST_DES          = .TRUE.
+      if(model_id .eq.8) ifrans_ktauSST_IDDES        = .TRUE.
 
       ! split diagonal of the production term into implicit, by Sigfried
       ifrans_diag=.TRUE.
@@ -2257,7 +2303,8 @@ c     $               should be >=$',ncoeffs)
      $   ifrans_komg_stndrd_noreg .or. ifrans_ktau_stndrd .or.
 c     $   ifrans_ktau_lowRe) call rans_komg_set_defaultcoeffs
      $   ifrans_ktau_lowRe) call rans_komg2006_set_defaultcoeffs
-         if(ifrans_komgSST_stndrd .or. ifrans_ktauSST_stndrd)
+         if(ifrans_komgSST_stndrd .or. ifrans_ktauSST_stndrd .or.
+     $      ifrans_ktauSST_DES    .or. ifrans_ktauSST_IDDES)
      $                            call rans_komgSST_set_defaultcoeffs
       endif
 
@@ -2589,7 +2636,7 @@ c Pr_t is the turbulent prandtl number
 c Turbulent viscosity constants
         Pr_t         = 0.85
         coeffs( 1)   = Pr_t
-        sigk1        = 0.5 ! should be 0.85 for SST
+        sigk1        = 0.85! should be 0.85 for SST
         coeffs( 2)   = sigk1
         sigom1       = 0.5
         coeffs( 3)   = sigom1
@@ -2601,7 +2648,7 @@ c Production of K constants
         coeffs( 4)   = alpinf_str
         r_k          = 6.0
         coeffs( 5)   = r_k
-        beta_0       = 0.072 ! should be 0.075 for SST
+        beta_0       = 0.075 ! should be 0.075 for SST
         coeffs( 6)   = beta_0
         alp0_str     = beta_0/3.0
         coeffs( 7)   = alp0_str
@@ -2609,8 +2656,8 @@ c Production of K constants
 c Dissipation of K constants
         betainf_str  = 0.09
         coeffs( 8)   = betainf_str
-        alp_inf      = beta_0/betainf_str 
-     $               - sigom1 * vkappa**2/sqrt(betainf_str) ! should be 0.52 for k-omega
+        alp_inf      = 5./9. ! beta_0/betainf_str 
+c     $               - sigom1 * vkappa**2/sqrt(betainf_str) ! should be 0.52 for k-omega
 c        alp_inf      = 0.52
         coeffs( 9)   = alp_inf
         r_b          = 8.0
@@ -2629,7 +2676,7 @@ c         beta_0 = defined earlier
 
         kv_min       = 0.0
         coeffs(14)   = kv_min
-        omeg_max     = 2.0e8 ! 400.0 
+        omeg_max     = 2.0e12! 400.0 
         coeffs(15)   = omeg_max
         tiny         = 1.e-8
         coeffs(16)   = tiny
@@ -2643,14 +2690,14 @@ c additional SST and k and epsilon constants
         coeffs(19)   = sigk2
         sigom2       = 0.856
         coeffs(20)   = sigom2
-        gamma2       = beta2/betainf_str 
-     $               - sigom2 * vkappa**2/sqrt(betainf_str) ! should be 0.44 for k-epsilon
+        gamma2       = 0.44 ! beta2/betainf_str 
+c     $               - sigom2 * vkappa**2/sqrt(betainf_str) ! should be 0.44 for k-epsilon
 c        gamma2       = 0.44
         coeffs(21)   = gamma2
-        coeff22      = 0.0
-        coeffs(22)   = coeff22
-        coeff23      = 0.0
-        coeffs(23)   = coeff23
+        cdes1        = 0.78 ! DES constants Gritskevich et al. 2012 paper
+        coeffs(22)   = cdes1
+        cdes2        = 0.61
+        coeffs(23)   = cdes2
 
 c constants related to limiting source terms or mu_t
         Hlen         = 1.0
@@ -2665,6 +2712,18 @@ c constants related to limiting source terms or mu_t
 c yplus boundary related to wall functions
         yplus        = 100.
         coeffs(28)   = yplus
+
+c c_d1 and c_d2 constants for DES fd and rd functions Gritskevich et al. 2012 paper
+        c_d1         = 20.0
+        coeffs(29)   = c_d1
+        c_d2         =  3.0
+        coeffs(30)   = c_d2
+
+        if(nid.eq.0) then
+          write(*,*) 'Using k-w SST coeffs'
+          write(*,*) 'beta_0, alp_inf ', beta_0, alp_inf
+          write(*,*) 'ywlim, edd_frac ',  ywlim, edd_frac_free
+        endif
 
         return
         end
@@ -3079,30 +3138,38 @@ c calculate F2 based on arg2
           yw     = ywd  (i,1,1,e)
           ywm1   = ywdm1(i,1,1,e)
           ywm2   = ywm1*ywm1
-          arg2_1 =     sqrt(k) * ywm1 / omega / beta_str
-          arg2_2 =          500.0*nu * ywm2 / omega
-          arg2   = 2.0*arg2_1
-          argF2  =     sqrt(k)*yw/(500.0*nu*beta_str)
-          if(2.0*argF2 .le. 1.0) arg2   = arg2_2
-          Fun2   = tanh(arg2 * arg2)
+          crit   = yw*sqrt(k)/(500.0*nu*beta_str)
+
+          arg1_1 = 500.0*beta1/6.0
+          Fun2   = 1.0
+          if(crit.gt.tiny) then
+             arg2_1 =     sqrt(k) * ywm1 / omega / beta_str
+             arg2_2 =          500.0*nu * ywm2 / omega
+             arg1_1 = max (    arg2_1, arg2_2)
+             arg2   = max (2.0*arg2_1, arg2_2)
+             Fun2   = tanh(arg2 * arg2)
+          endif
 
 c calculate F1 based on arg1
 
           tinySST= 1.0e-10
-          arg1_1 = arg2_1
-          if(    argF2 .le. 1.0) arg1_1   = arg2_2
-          arg1_2 =     4.0 * rho * sigom2 * k * ywm2 / tinySST
-          argF1  = tinySST * omega /(2.0 * rho * sigom2)
-          if(xk .gt. argF1) arg1_2 =   2.0 * k * omega * ywm2 / xk
-          arg1   = min(    arg1_1, arg1_2)
-          Fun1   = tanh(arg1 * arg1 * arg1 * arg1)
+
+          Fun1   = 1.0
+          if(yw.gt.tiny) then
+             den1_1 = 2.0 * sigom2 * xk/omega
+             den1_2 = tinySST / omega**2
+             arg1_2 = 4.0 * sigom2 * k * ywm2 / max(den1_1,den1_2)
+             arg1   = min(    arg1_1, arg1_2)
+             Fun1   = tanh(arg1 * arg1 * arg1 * arg1)
+          endif
 
 c calculate mu_t
 
-          mu_t   = rho * k/(omega + tiny)
+          mu_t   = rho * k/omega
           argn   = Fun2*St_magn ! this can also be Om_magn
-          if(omega.le.argn/alp1) then
-             mu_t   = rho * alp1 * k/argn
+          if(alp1.le.argn/omega) then
+             mu_t   = 0.0
+             if(argn.ne.0.) mu_t   = rho * alp1 * k/argn
              denom  = argn/ alp1
           else
              denom  = omega
@@ -3556,7 +3623,12 @@ c
      $                , OiOjSk (lx1*ly1*lz1,lelv)
      $                , DivQ   (lx1*ly1*lz1,lelv)
 
+      common /scr_sst / Fun1arr(lx1,ly1,lz1,lelv)
+     $                , Fun2arr(lx1,ly1,lz1,lelv)
+     $                , vmutarr(lx1,ly1,lz1,lelv)
       integer e
+
+      real mu_t0
 
 c Turbulent viscosity constants
         Pr_t         = coeffs( 1)
@@ -3613,6 +3685,7 @@ c================================
 
       if(iflim_tau.eq.0) call limit_ktau
 
+      iflim_tau =-1 ! limit tau
       do e=1,nelv
 
         call gradm11(k_x,  k_y,  k_z,  t(1,1,1,1,ifld_k    -1),e)
@@ -3631,6 +3704,9 @@ c limits for k, tau
 
           tau     = t(i,1,1,e,ifld_omega-1) ! Current k & tau    values
           k       = t(i,1,1,e,ifld_k  -1)   ! from previous timestep
+
+          if(iflim_tau.eq.-1) call limit_ktau_test(k,tau
+     $                 ,t(i,1,1,e,ifld_k-1),t(i,1,1,e,ifld_omega-1))
 
           if    (iflim_tau.eq.1) then
 
@@ -3667,25 +3743,33 @@ c calculate del k * del tau   / tau
 c calculate F2 based on arg2
 
           yw     = ywd  (i,1,1,e)
-          ywm1   = ywdm1(i,1,1,e)
+          ywm1   = 0.0
+          if(yw.gt.tiny) ywm1 = 1./yw
           ywm2   = ywm1*ywm1
-          arg2_1 =     sqrt(k) * ywm1 * tau / beta_str
-          arg2_2 =    500.0*nu * ywm2 * tau
-          arg2   = 2.0*arg2_1
-          argF2  =     sqrt(k)*yw/(500.0*nu*beta_str)
-          if(2.0*argF2 .le. 1.0) arg2   = arg2_2
-          Fun2   = tanh(arg2 * arg2)
+          crit   = yw*sqrt(k)/(500.0*nu*beta_str)
+
+          arg1_1 = 500.0*beta1/6.0
+          Fun2   = 1.0
+          if(crit.gt.tiny) then
+             arg2_1 =  sqrt(k) * tau * ywm1 / beta_str
+             arg2_2 = 500.0*nu * tau * ywm2
+             arg1_1 = max (    arg2_1, arg2_2)
+             arg2   = max (2.0*arg2_1, arg2_2)
+             Fun2   = tanh(arg2 * arg2)
+          endif
 
 c calculate F1 based on arg1
 
           tinySST= 1.0e-10
-          arg1_1 = arg2_1
-          if(    argF2 .le. 1.0) arg1_1   = arg2_2
-          arg1_2 =     4.0 * rho * sigom2 * k * ywm2 / tinySST
-          argF1  = tinySST * tau /(2.0 * rho * sigom2)
-          if(xk .gt. argF1) arg1_2 =   2.0 * k * tau * ywm2 / xk
-          arg1   = min(    arg1_1, arg1_2)
-          Fun1   = tanh(arg1 * arg1 * arg1 * arg1)
+
+          Fun1   = 1.0
+          if(yw.gt.tiny) then
+             den1_1 = 2.0 * sigom2 * xk/(tau+tiny)
+             den1_2 = tinySST * tau**2
+             arg1_2 = 4.0 * sigom2 * k * ywm2 / max(den1_1,den1_2)
+             arg1   = min(    arg1_1, arg1_2)
+             Fun1   = tanh(arg1 * arg1 * arg1 * arg1)
+          endif
 
 c calculate mu_t
 
@@ -3708,6 +3792,10 @@ c          mu_t = max(mu_t, mu_min)
           mut  (i,1,1,e)   = mu_t
           mutsk(i,1,1,e)   = mu_t * sigk
           mutso(i,1,1,e)   = mu_t * sigom
+
+          Fun1arr(i,1,1,e) = Fun1
+          Fun2arr(i,1,1,e) = Fun2
+          vmutarr(i,1,1,e) = mut  (i,1,1,e)
 
         enddo
 
@@ -4426,6 +4514,1134 @@ c-----------------------------------------------------------------------
       call opgrad  (mul_dx,mul_dy,mul_dz,mul)
       call opdssum (mul_dx,mul_dy,mul_dz)
       call opcolv  (mul_dx,mul_dy,mul_dz,binvm1)
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine rans_ktauSST_DES_compute
+c
+c     Compute RANS source terms and diffusivities on an 
+c     element-by-element basis
+c
+      include 'SIZE'
+      include 'TOTAL'
+      include 'RANS_KOMG'
+
+      parameter (lxyz=lx1*ly1*lz1)
+
+      real           k_x(lxyz),k_y(lxyz),k_z(lxyz)
+     $              ,t_x(lxyz),t_y(lxyz),t_z(lxyz)
+     $              ,tau_x(lxyz), tau_y(lxyz), tau_z(lxyz)
+
+      real           tausq(lxyz,lelv)
+     $              ,tsq_x(lxyz), tsq_y(lxyz), tsq_z(lxyz)
+
+      real           g    (lxyz), div     (lxyz)
+
+      common /storesom/ St_mag2(lx1*ly1*lz1,lelv)
+     $                , Om_mag2(lx1*ly1*lz1,lelv)
+     $                , OiOjSk (lx1*ly1*lz1,lelv)
+     $                , DivQ   (lx1*ly1*lz1,lelv)
+
+      common /scr_sst / fdr_arr(lx1,ly1,lz1,lelv)
+     $                , rdr_arr(lx1,ly1,lz1,lelv)
+     $                , rnsLarr(lx1,ly1,lz1,lelv)
+     $                , xlesarr(lx1,ly1,lz1,lelv)
+     $                , cdesarr(lx1,ly1,lz1,lelv)
+     $                , ddesarr(lx1,ly1,lz1,lelv)
+     $                , vmutarr(lx1,ly1,lz1,lelv)
+
+      common /Dgrdelm/ dxgrd(lelt), dygrd(lelt), dzgrd(lelt)
+     $               , dgrd  (lx1,ly1,lz1,lelt)
+
+      integer e
+
+      real mu_t0
+
+c Turbulent viscosity constants
+        Pr_t         = coeffs( 1)
+        sigk1        = coeffs( 2)
+        sigom1       = coeffs( 3)
+
+c Low Reynolds number correction constants
+        alpinf_str   = coeffs( 4)
+        r_k          = coeffs( 5)
+        beta1        = coeffs( 6)
+        alp0_str     = coeffs( 7)
+
+c Dissipation of K constants
+        beta_str     = coeffs( 8)
+        gamma1       = coeffs( 9)
+        r_b          = coeffs(10)
+        akk          = coeffs(11)
+
+c Production of omega constants
+        alpha_0      = coeffs(12)
+        r_w          = coeffs(13)
+
+c Dissipation of omega constants
+c         beta_0 = defined earlier	     
+
+        kv_min       = coeffs(14)
+        omeg_max     = coeffs(15)
+        tiny         = coeffs(16)
+
+c additional SST and k and epsilon constants
+        alp1         = coeffs(17)
+        beta2        = coeffs(18)
+        sigk2        = coeffs(19)
+        sigom2       = coeffs(20)
+        gamma2       = coeffs(21)
+c CDES1 and CDES2 constants for DES Gritskevich et al. 2012 paper
+        cdes1        = coeffs(22)
+        cdes2        = coeffs(23)
+
+
+c constants related to limiting source terms or mu_t
+        Hlen         = coeffs(24)
+        ywlim        = coeffs(25)
+        edd_frac_free= coeffs(26)
+        tke_frac_free= coeffs(27)
+
+c yplus boundary related to wall functions
+        yplus        = coeffs(28)
+c c_d1 and c_d2 constants for DES fd and rd functions Gritskevich et al. 2012 paper
+        c_d1         = coeffs(29)
+        c_d2         = coeffs(30)
+c================================
+        vkappa= 0.41
+
+      ntot = nx1*ny1*nz1*nelv
+      call comp_StOm (St_mag2, Om_mag2, OiOjSk, DivQ)
+      call sqrt_tau(tausq,t(1,1,1,1,ifld_omega-1),ntot)
+
+      mu_min    = edd_frac_free*param(2)
+      iflim_tau = 0 ! limit tau
+
+      if(iflim_tau.eq.0) call limit_ktau
+
+      iflim_tau =-1 ! limit tau
+      do e=1,nelv
+
+        call copy   (g,   St_mag2(1,e),       lxyz)
+c        call copy   (g,   Om_mag2(1,e),       lxyz)
+        call copy   (div, DivQ   (1,e),       lxyz)
+        if(.not.iflomach) call rzero  (div,   lxyz)
+
+        call gradm11(k_x,  k_y,  k_z,  t(1,1,1,1,ifld_k    -1),e)
+        call gradm11(tau_x,tau_y,tau_z,t(1,1,1,1,ifld_omega-1),e)
+        call gradm11(tsq_x,tsq_y,tsq_z,tausq                  ,e)
+
+c ---------------------
+c        call check_omwall_behavior
+c ---------------------
+        do i=1,lxyz
+
+          rho = param(1) ! vtrans(i,1,1,e,1)
+          mu  = param(2) ! vdiff (i,1,1,e,1)
+          nu  = mu/rho
+
+c limits for k, tau
+
+          tau     = t(i,1,1,e,ifld_omega-1) ! Current k & tau    values
+          k       = t(i,1,1,e,ifld_k  -1)   ! from previous timestep
+
+          if(iflim_tau.eq.-1) call limit_ktau_test(k,tau
+     $                 ,t(i,1,1,e,ifld_k-1),t(i,1,1,e,ifld_omega-1))
+
+          if    (iflim_tau.eq.1) then
+
+            if(tau  .lt.0.0) then
+              write(*,*) 'TAU  tot is neg', tau
+              tau   = 0.01*abs(tau  )
+            endif
+
+            if(k.lt.0.0) then
+               write(*,*) 'K  is neg', k
+               k = 0.01*abs(k)
+            endif
+
+          endif
+
+          t_x(i)= tau_x(i)
+          t_y(i)= tau_y(i)
+          if(if3d) t_z(i)= tau_z(i)
+
+c See equations from eqns_k_omega1.pdf from Eq. (3) onwards
+c Eq.(1) and (2) in eqns_k_omega1.pdf are the governing equations
+c no source terms Sk or S_w are added
+
+          St_magn = sqrt(St_mag2(i,e))
+          Om_magn = sqrt(Om_mag2(i,e))
+          sum_xx  =      OiOjSk (i,e)
+
+c calculate del k * del tau   / tau  
+
+          if(if3d)then
+            xk =-(k_x(i)*t_x(i) + k_y(i)*t_y(i) + k_z(i)*t_z(i))
+            xt = (t_x(i)*t_x(i) + t_y(i)*t_y(i) + t_z(i)*t_z(i))
+            xtq= (tsq_x(i)*tsq_x(i)+tsq_y(i)*tsq_y(i)+tsq_z(i)*tsq_z(i))
+          else
+            xk =-(k_x(i)*t_x(i) + k_y(i)*t_y(i))
+            xt = (t_x(i)*t_x(i) + t_y(i)*t_y(i))
+            xtq= (tsq_x(i)*tsq_x(i)+tsq_y(i)*tsq_y(i))
+          endif
+
+c calculate F2 based on arg2
+
+          yw     = ywd  (i,1,1,e)
+          ywm1   = 0.0
+          if(yw.gt.tiny) ywm1 = 1./yw
+          ywm2   = ywm1*ywm1
+          crit   = yw*sqrt(k)/(500.0*nu*beta_str)
+
+          arg1_1 = 500.0*beta1/6.0
+          Fun2   = 1.0
+          if(crit.gt.tiny) then
+             arg2_1 =  sqrt(k) * tau * ywm1 / beta_str
+             arg2_2 = 500.0*nu * tau * ywm2
+             arg1_1 = max (    arg2_1, arg2_2)
+             arg2   = max (2.0*arg2_1, arg2_2)
+             Fun2   = tanh(arg2 * arg2)
+          endif
+c          Fun2   = 1.0 ! XXX test !!!!
+
+c calculate F1 based on arg1
+
+          tinySST= 1.0e-10
+
+          Fun1   = 1.0
+          if(yw.gt.tiny) then
+             den1_1 = 2.0 * sigom2 * xk/(tau+tiny)
+             den1_2 = tinySST * tau**2
+             arg1_2 = 4.0 * sigom2 * k * ywm2 / max(den1_1,den1_2)
+             arg1   = min(    arg1_1, arg1_2)
+             Fun1   = tanh(arg1 * arg1 * arg1 * arg1)
+          endif
+c          Fun1   = 1.0 ! XXX test !!!!
+
+          beta  = Fun1 * beta1  + (1.0 - Fun1) * beta2
+          gamma = Fun1 * gamma1 + (1.0 - Fun1) * gamma2
+          sigk  = Fun1 * sigk1  + (1.0 - Fun1) * sigk2
+          sigom = Fun1 * sigom1 + (1.0 - Fun1) * sigom2
+          CDES  = Fun1 * cdes1  + (1.0 - Fun1) * cdes2
+
+c calculate mu_t
+
+          mu_t   = rho * k * tau
+          argn   = Fun2*St_magn ! this can also be Om_magn
+          if(alp1.le.(argn*tau)) then
+             mu_t   = 0.0
+             if(argn.ne.0.) mu_t   = rho * alp1 * k/argn
+             denom  = argn/ alp1
+          else
+             denom  = 0.
+             if(tau.ne.0.) denom  = 1.0/tau
+          endif
+c          mu_t   = rho * k * tau ! XXX test !!!!
+
+c          if( sqrt(k)*tau.ge.Hlen) mu_t = rho * sqrt(k) * Hlen      ! limit mu_t in far field
+c          mu_t = max(mu_t, mu_min)
+
+          yw   = ywd  (i,1,1,e)
+          Rfact= 1.
+          if( mu_t.lt.mu_min .and .yw.gt.ywlim) Rfact= mu_t/mu_min  ! limit source terms in far field
+
+c Compute Y_k = dissipation of k
+c
+          ransL = sqrt(k)*(tau+tiny)/beta_str
+          hmax  = dgrd  (i,1,1,e)
+          xlesL = CDES*hmax
+          xnueff= (mul(i,1,1,e)+mu_t)/rho
+          rd    =  0.
+          denom_rd=(vkappa*yw)**2*sqrt(0.5*(St_mag2(i,e)+Om_mag2(i,e)))
+          if(denom_rd.gt.tiny) rd    =  xnueff / denom_rd
+          fd = 1. - tanh((c_d1*rd)**c_d2)
+          ddesL = ransL - fd*max(0.,ransL-xlesL)
+
+          Y_k = 0.
+          if(ddesL.gt.0) Y_k = rho * sqrt(k)/ ddesL
+c          if(tau.gt.0) Y_k = rho * beta_str / (tau + tiny)
+
+c Compute G_k = production of  k and limit it to 10*Y_k (the dissipation of k)
+
+          extra_prod = twothird*div(i)
+          twoSijSij_bar = g(i) - div(i)*extra_prod
+
+          G_k0= mu_t*g(i) - ( rho*k + mu_t*div(i) )*extra_prod
+          G_k = G_k0 ! min(G_k0, 10.*Y_k*k)
+
+c Compute Source term for k
+
+          if (ifrans_diag) then
+            kSrc  (i,1,1,e) = min(G_k, 10.*Y_k*k)
+            kDiag (i,1,1,e) = Y_k
+          else
+            kSrc  (i,1,1,e) = G_k - Y_k * k
+            kDiag (i,1,1,e) = 0.0
+          endif
+
+c Compute production of omega
+
+          tau2 = tau*tau
+          G_w0 = rho*tau *gamma*(tau*g(i)-(1.+div(i)*tau)*extra_prod)
+     $          *Rfact
+          G_wp = rho     *gamma*(tau*g(i)-(1.+div(i)*tau)*extra_prod)
+     $          *Rfact
+          G_w =-G_w0 !-min(G_w0, 10.0*Y_w0)
+
+c Compute dissipation of omega
+ 
+          Y_w0=-rho * beta * Rfact
+          Y_w = Y_w0
+
+c Compute additional SST term for tau
+
+          S_w0=-2.0 * rho * sigom2 * (1.0 - Fun1) * xk       * Rfact
+          S_w =-2.0 * rho * sigom2 * (1.0 - Fun1) * xk * tau * Rfact
+c          S_w0 = 0.
+c          S_w  = 0.
+
+c          sigd       = 0.
+c          if (xk.gt.0) sigd = 1./8.
+c          S_w =-rho * sigd * xk * tau * Rfact
+
+c          Scoef = 0.0
+c          if(tau.ne.0.) Scoef = 2.*(mu+mu_t*sigom)/tau
+c          S_tau = Scoef*xt
+
+c          Scoef = 8.*(mu+mu_t*sigom)
+c          S_tau = Scoef*xtq
+
+c Compute Source term for omega
+
+          S_tau = 8.0*mul(i,1,1,e) *xtq * Rfact
+          S_tau = min(S_tau, 4.*beta/3.)
+          S_taup= 8.0*rho*k*xtq * Rfact*sigom
+
+          if(ifrans_diag) then
+            if(tau.le.tiny) then
+              omgSrc(i,1,1,e) = - Y_w - S_tau
+              omgDiag(i,1,1,e)= G_wp + S_taup - S_w0
+c              omgSrc(i,1,1,e) = S_w - Y_w - S_tau
+c              omgDiag(i,1,1,e)= G_wp + S_taup
+            else
+              omgSrc(i,1,1,e) = - Y_w
+              omgDiag(i,1,1,e)= G_wp + S_taup - S_w0 + S_tau/tau !+ Y_w/tau
+c              omgSrc(i,1,1,e) = S_w - Y_w
+c              omgDiag(i,1,1,e)= G_wp + S_taup + S_tau/tau
+            endif
+          else
+            omgSrc(i,1,1,e) = S_w - Y_w - S_tau - (G_wp + S_taup) * tau
+            omgDiag(i,1,1,e)= 0.0
+          endif
+
+          mut  (i,1,1,e)   = mu_t
+          mutsk(i,1,1,e)   = mu_t * sigk
+          mutso(i,1,1,e)   = mu_t * sigom
+
+          fdr_arr(i,1,1,e) = fd
+          rdr_arr(i,1,1,e) = rd
+          rnsLarr(i,1,1,e) = ransL
+          xlesarr(i,1,1,e) = xlesL
+          cdesarr(i,1,1,e) = CDES
+          ddesarr(i,1,1,e) = ddesL
+          vmutarr(i,1,1,e) = mut  (i,1,1,e)
+
+        enddo
+
+      enddo
+
+      if (ifrans_diag) then ! divided all at here
+        do e=1,nelv
+        do i=1,lxyz
+          kDiag  (i,1,1,e) = kDiag(i,1,1,e)
+c     $                     / max(t(i,1,1,e,ifld_k-1),    tiny)
+          omgDiag(i,1,1,e) = omgDiag(i,1,1,e)
+c     $                     / max(t(i,1,1,e,ifld_omega-1),tiny)
+        enddo
+        enddo
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine rans_ktauSST_DES_eddy
+c
+c     Compute RANS source terms and diffusivities on an 
+c     element-by-element basis
+c
+      include 'SIZE'
+      include 'TOTAL'
+      include 'RANS_KOMG'
+
+      parameter (lxyz=lx1*ly1*lz1)
+
+      real           k_x(lxyz),k_y(lxyz),k_z(lxyz)
+     $              ,t_x(lxyz),t_y(lxyz),t_z(lxyz)
+     $              ,tau_x(lxyz), tau_y(lxyz), tau_z(lxyz)
+
+      common /storesom/ St_mag2(lx1*ly1*lz1,lelv)
+     $                , Om_mag2(lx1*ly1*lz1,lelv)
+     $                , OiOjSk (lx1*ly1*lz1,lelv)
+     $                , DivQ   (lx1*ly1*lz1,lelv)
+
+      common /scr_sst / Fun1arr(lx1,ly1,lz1,lelv)
+     $                , Fun2arr(lx1,ly1,lz1,lelv)
+     $                , vmutarr(lx1,ly1,lz1,lelv)
+
+      integer e
+
+      real mu_t0
+
+c Turbulent viscosity constants
+        Pr_t         = coeffs( 1)
+        sigk1        = coeffs( 2)
+        sigom1       = coeffs( 3)
+
+c Low Reynolds number correction constants
+        alpinf_str   = coeffs( 4)
+        r_k          = coeffs( 5)
+        beta1        = coeffs( 6)
+        alp0_str     = coeffs( 7)
+
+c Dissipation of K constants
+        beta_str     = coeffs( 8)
+        gamma1       = coeffs( 9)
+        r_b          = coeffs(10)
+        akk          = coeffs(11)
+
+c Production of omega constants
+        alpha_0      = coeffs(12)
+        r_w          = coeffs(13)
+
+c Dissipation of omega constants
+c         beta_0 = defined earlier           
+
+        kv_min       = coeffs(14)
+        omeg_max     = coeffs(15)
+        tiny         = coeffs(16)
+
+c additional SST and k and epsilon constants
+        alp1         = coeffs(17)
+        beta2        = coeffs(18)
+        sigk2        = coeffs(19)
+        sigom2       = coeffs(20)
+        gamma2       = coeffs(21)
+
+
+
+c constants related to limiting source terms or mu_t
+        Hlen         = coeffs(24)
+        ywlim        = coeffs(25)
+        edd_frac_free= coeffs(26)
+        tke_frac_free= coeffs(27)
+
+c yplus boundary related to wall functions
+        yplus        = coeffs(28)
+c================================
+        vkappa= 0.4
+
+      ntot = nx1*ny1*nz1*nelv
+      call comp_StOm (St_mag2, Om_mag2, OiOjSk, DivQ)
+
+      mu_min    = edd_frac_free*param(2)
+      iflim_tau = 0 ! limit tau
+
+      if(iflim_tau.eq.0) call limit_ktau
+
+      iflim_tau =-1 ! limit tau
+      do e=1,nelv
+
+        call gradm11(k_x,  k_y,  k_z,  t(1,1,1,1,ifld_k    -1),e)
+        call gradm11(tau_x,tau_y,tau_z,t(1,1,1,1,ifld_omega-1),e)
+
+c ---------------------
+c        call check_omwall_behavior
+c ---------------------
+        do i=1,lxyz
+
+          rho = param(1) ! vtrans(i,1,1,e,1)
+          mu  = param(2) ! vdiff (i,1,1,e,1)
+          nu  = mu/rho
+
+c limits for k, tau
+
+          tau     = t(i,1,1,e,ifld_omega-1) ! Current k & tau    values
+          k       = t(i,1,1,e,ifld_k  -1)   ! from previous timestep
+
+          if(iflim_tau.eq.-1) call limit_ktau_test(k,tau
+     $                 ,t(i,1,1,e,ifld_k-1),t(i,1,1,e,ifld_omega-1))
+
+          if    (iflim_tau.eq.1) then
+
+            if(tau  .lt.0.0) then
+              write(*,*) 'TAU  tot is neg', tau
+              tau   = 0.01*abs(tau  )
+            endif
+
+            if(k.lt.0.0) then
+               write(*,*) 'K  is neg', k
+               k = 0.01*abs(k)
+            endif
+
+          endif
+
+          t_x(i)= tau_x(i)
+          t_y(i)= tau_y(i)
+          if(if3d) t_z(i)= tau_z(i)
+
+          St_magn = sqrt(St_mag2(i,e))
+          Om_magn = sqrt(Om_mag2(i,e))
+
+c calculate del k * del tau   / tau  
+
+          if(if3d)then
+            xk =-(k_x(i)*t_x(i) + k_y(i)*t_y(i) + k_z(i)*t_z(i))
+            xt = (t_x(i)*t_x(i) + t_y(i)*t_y(i) + t_z(i)*t_z(i))
+          else
+            xk =-(k_x(i)*t_x(i) + k_y(i)*t_y(i))
+            xt = (t_x(i)*t_x(i) + t_y(i)*t_y(i))
+          endif
+
+
+
+c calculate F2 based on arg2
+
+          yw     = ywd  (i,1,1,e)
+          ywm1   = 0.0
+          if(yw.gt.tiny) ywm1 = 1./yw
+          ywm2   = ywm1*ywm1
+          crit   = yw*sqrt(k)/(500.0*nu*beta_str)
+
+          arg1_1 = 500.0*beta1/6.0
+          Fun2   = 1.0
+          if(crit.gt.tiny) then
+             arg2_1 =  sqrt(k) * tau * ywm1 / beta_str
+             arg2_2 = 500.0*nu * tau * ywm2
+             arg1_1 = max (    arg2_1, arg2_2)
+             arg2   = max (2.0*arg2_1, arg2_2)
+             Fun2   = tanh(arg2 * arg2)
+          endif
+c          Fun2   = 1.0 ! XXX test !!!!
+
+c calculate F1 based on arg1
+
+          tinySST= 1.0e-10
+
+          Fun1   = 1.0
+          if(yw.gt.tiny) then
+             den1_1 = 2.0 * sigom2 * xk/(tau+tiny)
+             den1_2 = tinySST * tau**2
+             arg1_2 = 4.0 * sigom2 * k * ywm2 / max(den1_1,den1_2)
+             arg1   = min(    arg1_1, arg1_2)
+             Fun1   = tanh(arg1 * arg1 * arg1 * arg1)
+          endif
+c          Fun1   = 1.0 ! XXX test !!!!
+
+c calculate mu_t
+
+          mu_t   = rho * k * tau
+          argn   = Fun2*St_magn ! this can also be Om_magn
+          if(alp1.le.(argn*tau)) then
+             mu_t   = 0.0
+             if(argn.ne.0.) mu_t   = rho * alp1 * k/argn
+             denom  = argn/ alp1
+          else
+             denom  = 0.
+             if(tau.ne.0.) denom  = 1.0/tau
+          endif
+c          mu_t   = rho * k * tau ! XXX test !!!!
+c          if( sqrt(k)*tau.ge.Hlen) mu_t = rho * sqrt(k) * Hlen      !  limit mu_t in far field
+c          mu_t = max(mu_t, mu_min)
+
+          sigk  = Fun1 * sigk1  + (1.0 - Fun1) * sigk2
+          sigom = Fun1 * sigom1 + (1.0 - Fun1) * sigom2
+
+          mut  (i,1,1,e)   = mu_t
+          mutsk(i,1,1,e)   = mu_t * sigk
+          mutso(i,1,1,e)   = mu_t * sigom
+
+          Fun1arr(i,1,1,e) = Fun1
+          Fun2arr(i,1,1,e) = Fun2
+          vmutarr(i,1,1,e) = mut  (i,1,1,e)
+
+        enddo
+
+      enddo
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine rans_ktauSST_IDDES_compute
+c
+c     Compute RANS source terms and diffusivities on an 
+c     element-by-element basis
+c
+      include 'SIZE'
+      include 'TOTAL'
+      include 'RANS_KOMG'
+
+      parameter (lxyz=lx1*ly1*lz1)
+
+      real           k_x(lxyz),k_y(lxyz),k_z(lxyz)
+     $              ,t_x(lxyz),t_y(lxyz),t_z(lxyz)
+     $              ,tau_x(lxyz), tau_y(lxyz), tau_z(lxyz)
+
+      real           tausq(lxyz,lelv)
+     $              ,tsq_x(lxyz), tsq_y(lxyz), tsq_z(lxyz)
+
+      real           g    (lxyz), div     (lxyz)
+
+      common /storesom/ St_mag2(lx1*ly1*lz1,lelv)
+     $                , Om_mag2(lx1*ly1*lz1,lelv)
+     $                , OiOjSk (lx1*ly1*lz1,lelv)
+     $                , DivQ   (lx1*ly1*lz1,lelv)
+
+      common /scr_sst / fdr_arr(lx1,ly1,lz1,lelv)
+     $                , rdr_arr(lx1,ly1,lz1,lelv)
+     $                , rnsLarr(lx1,ly1,lz1,lelv)
+     $                , xlesarr(lx1,ly1,lz1,lelv)
+     $                , cdesarr(lx1,ly1,lz1,lelv)
+     $                , ddesarr(lx1,ly1,lz1,lelv)
+     $                , vmutarr(lx1,ly1,lz1,lelv)
+
+      common /Dgrdelm/ dxgrd(lelt), dygrd(lelt), dzgrd(lelt)
+     $               , dgrd  (lx1,ly1,lz1,lelt)
+
+      integer e
+
+      real mu_t0
+
+c Turbulent viscosity constants
+        Pr_t         = coeffs( 1)
+        sigk1        = coeffs( 2)
+        sigom1       = coeffs( 3)
+
+c Low Reynolds number correction constants
+        alpinf_str   = coeffs( 4)
+        r_k          = coeffs( 5)
+        beta1        = coeffs( 6)
+        alp0_str     = coeffs( 7)
+
+c Dissipation of K constants
+        beta_str     = coeffs( 8)
+        gamma1       = coeffs( 9)
+        r_b          = coeffs(10)
+        akk          = coeffs(11)
+
+c Production of omega constants
+        alpha_0      = coeffs(12)
+        r_w          = coeffs(13)
+
+c Dissipation of omega constants
+c         beta_0 = defined earlier	     
+
+        kv_min       = coeffs(14)
+        omeg_max     = coeffs(15)
+        tiny         = coeffs(16)
+
+c additional SST and k and epsilon constants
+        alp1         = coeffs(17)
+        beta2        = coeffs(18)
+        sigk2        = coeffs(19)
+        sigom2       = coeffs(20)
+        gamma2       = coeffs(21)
+c CDES1 and CDES2 constants for DES Gritskevich et al. 2012 paper
+        cdes1        = coeffs(22)
+        cdes2        = coeffs(23)
+
+
+c constants related to limiting source terms or mu_t
+        Hlen         = coeffs(24)
+        ywlim        = coeffs(25)
+        edd_frac_free= coeffs(26)
+        tke_frac_free= coeffs(27)
+
+c yplus boundary related to wall functions
+        yplus        = coeffs(28)
+c c_d1 and c_d2 constants for DES fd and rd functions Gritskevich et al. 2012 paper
+        c_d1         = coeffs(29)
+        c_d2         = coeffs(30)
+c================================
+        vkappa= 0.41
+
+      ntot = nx1*ny1*nz1*nelv
+      call comp_StOm (St_mag2, Om_mag2, OiOjSk, DivQ)
+      call sqrt_tau(tausq,t(1,1,1,1,ifld_omega-1),ntot)
+
+      mu_min    = edd_frac_free*param(2)
+      iflim_tau = 0 ! limit tau
+
+      if(iflim_tau.eq.0) call limit_ktau
+
+      iflim_tau =-1 ! limit tau
+      do e=1,nelv
+
+        call copy   (g,   St_mag2(1,e),       lxyz)
+c        call copy   (g,   Om_mag2(1,e),       lxyz)
+        call copy   (div, DivQ   (1,e),       lxyz)
+        if(.not.iflomach) call rzero  (div,   lxyz)
+
+        call gradm11(k_x,  k_y,  k_z,  t(1,1,1,1,ifld_k    -1),e)
+        call gradm11(tau_x,tau_y,tau_z,t(1,1,1,1,ifld_omega-1),e)
+        call gradm11(tsq_x,tsq_y,tsq_z,tausq                  ,e)
+
+c ---------------------
+c        call check_omwall_behavior
+c ---------------------
+        do i=1,lxyz
+
+          rho = param(1) ! vtrans(i,1,1,e,1)
+          mu  = param(2) ! vdiff (i,1,1,e,1)
+          nu  = mu/rho
+
+c limits for k, tau
+
+          tau     = t(i,1,1,e,ifld_omega-1) ! Current k & tau    values
+          k       = t(i,1,1,e,ifld_k  -1)   ! from previous timestep
+
+          if(iflim_tau.eq.-1) call limit_ktau_test(k,tau
+     $                 ,t(i,1,1,e,ifld_k-1),t(i,1,1,e,ifld_omega-1))
+
+          if    (iflim_tau.eq.1) then
+
+            if(tau  .lt.0.0) then
+              write(*,*) 'TAU  tot is neg', tau
+              tau   = 0.01*abs(tau  )
+            endif
+
+            if(k.lt.0.0) then
+               write(*,*) 'K  is neg', k
+               k = 0.01*abs(k)
+            endif
+
+          endif
+
+          t_x(i)= tau_x(i)
+          t_y(i)= tau_y(i)
+          if(if3d) t_z(i)= tau_z(i)
+
+c See equations from eqns_k_omega1.pdf from Eq. (3) onwards
+c Eq.(1) and (2) in eqns_k_omega1.pdf are the governing equations
+c no source terms Sk or S_w are added
+
+          St_magn = sqrt(St_mag2(i,e))
+          Om_magn = sqrt(Om_mag2(i,e))
+          sum_xx  =      OiOjSk (i,e)
+
+c calculate del k * del tau   / tau  
+
+          if(if3d)then
+            xk =-(k_x(i)*t_x(i) + k_y(i)*t_y(i) + k_z(i)*t_z(i))
+            xt = (t_x(i)*t_x(i) + t_y(i)*t_y(i) + t_z(i)*t_z(i))
+            xtq= (tsq_x(i)*tsq_x(i)+tsq_y(i)*tsq_y(i)+tsq_z(i)*tsq_z(i))
+          else
+            xk =-(k_x(i)*t_x(i) + k_y(i)*t_y(i))
+            xt = (t_x(i)*t_x(i) + t_y(i)*t_y(i))
+            xtq= (tsq_x(i)*tsq_x(i)+tsq_y(i)*tsq_y(i))
+          endif
+
+c calculate F2 based on arg2
+
+          yw     = ywd  (i,1,1,e)
+          ywm1   = 0.0
+          if(yw.gt.tiny) ywm1 = 1./yw
+          ywm2   = ywm1*ywm1
+          crit   = yw*sqrt(k)/(500.0*nu*beta_str)
+
+          arg1_1 = 500.0*beta1/6.0
+          Fun2   = 1.0
+          if(crit.gt.tiny) then
+             arg2_1 =  sqrt(k) * tau * ywm1 / beta_str
+             arg2_2 = 500.0*nu * tau * ywm2
+             arg1_1 = max (    arg2_1, arg2_2)
+             arg2   = max (2.0*arg2_1, arg2_2)
+             Fun2   = tanh(arg2 * arg2)
+          endif
+c          Fun2   = 1.0 ! XXX test !!!!
+
+c calculate F1 based on arg1
+
+          tinySST= 1.0e-10
+
+          Fun1   = 1.0
+          if(yw.gt.tiny) then
+             den1_1 = 2.0 * sigom2 * xk/(tau+tiny)
+             den1_2 = tinySST * tau**2
+             arg1_2 = 4.0 * sigom2 * k * ywm2 / max(den1_1,den1_2)
+             arg1   = min(    arg1_1, arg1_2)
+             Fun1   = tanh(arg1 * arg1 * arg1 * arg1)
+          endif
+c          Fun1   = 1.0 ! XXX test !!!!
+
+          beta  = Fun1 * beta1  + (1.0 - Fun1) * beta2
+          gamma = Fun1 * gamma1 + (1.0 - Fun1) * gamma2
+          sigk  = Fun1 * sigk1  + (1.0 - Fun1) * sigk2
+          sigom = Fun1 * sigom1 + (1.0 - Fun1) * sigom2
+          CDES  = Fun1 * cdes1  + (1.0 - Fun1) * cdes2
+
+c calculate mu_t
+
+          mu_t   = rho * k * tau
+          argn   = Fun2*St_magn ! this can also be Om_magn
+          if(alp1.le.(argn*tau)) then
+             mu_t   = 0.0
+             if(argn.ne.0.) mu_t   = rho * alp1 * k/argn
+             denom  = argn/ alp1
+          else
+             denom  = 0.
+             if(tau.ne.0.) denom  = 1.0/tau
+          endif
+c          mu_t   = rho * k * tau ! XXX test !!!!
+
+c          if( sqrt(k)*tau.ge.Hlen) mu_t = rho * sqrt(k) * Hlen      ! limit mu_t in far field
+c          mu_t = max(mu_t, mu_min)
+
+          yw   = ywd  (i,1,1,e)
+          Rfact= 1.
+          if( mu_t.lt.mu_min .and .yw.gt.ywlim) Rfact= mu_t/mu_min  ! limit source terms in far field
+
+c Compute Y_k = dissipation of k
+c
+          ransL = sqrt(k)*(tau+tiny)/beta_str
+          hmax  = dgrd  (i,1,1,e)
+          Dscl1 = 0.15*max(yw,hmax)
+          Dscle = min(Dscl1,hmax)
+          xlesL = CDES*Dscle
+          xnut  = mu_t/rho
+          xnul  = mul(i,1,1,e)/rho
+          rdt   = 0.
+          rdl   = 0.
+          denom_rd=(vkappa*yw)**2*sqrt(0.5*(St_mag2(i,e)+Om_mag2(i,e)))
+          if(denom_rd.gt.tiny) rdt   =  xnut   / denom_rd
+          if(denom_rd.gt.tiny) rdl   =  xnul   / denom_rd
+          alcon = 0.25 - yw/hmax
+          fb = min(2.*exp(-9.*alcon**2),1.)
+          fdt= 1. - tanh((c_d1*rdt)**c_d2)
+          fd = max(1.-fdt,fb)
+          fe = 0.
+          if(alcon.ge.0.) then
+             fe1= 2.*exp(-11.09*alcon**2)
+          else
+             fe1= 2.*exp(- 9.0 *alcon**2)
+          endif
+          ft = tanh((3.4969*rdt)** 3)  !C_t^2 = 1.87^2 = 3.4969
+          fl = tanh((25.0  *rdl)**10)  !C_l^2 = 5.0 ^2 = 25.0
+          fe2= 1.0 - max(ft,fl)
+          fe = fe2 * max( (fe1 - 1.0), 0.0)
+          xiddesL = fd * (1. + fe) * ransL + (1. - fd) * xlesL
+
+          Y_k = 0.
+          if(xiddesL.gt.0) Y_k = rho * sqrt(k)/ xiddesL
+c          if(tau.gt.0) Y_k = rho * beta_str / (tau + tiny)
+
+c Compute G_k = production of  k and limit it to 10*Y_k (the dissipation of k)
+
+          extra_prod = twothird*div(i)
+          twoSijSij_bar = g(i) - div(i)*extra_prod
+
+          G_k0= mu_t*g(i) - ( rho*k + mu_t*div(i) )*extra_prod
+          G_k = G_k0 ! min(G_k0, 10.*Y_k*k)
+
+c Compute Source term for k
+
+          if (ifrans_diag) then
+            kSrc  (i,1,1,e) = min(G_k, 10.*Y_k*k)
+            kDiag (i,1,1,e) = Y_k
+          else
+            kSrc  (i,1,1,e) = G_k - Y_k * k
+            kDiag (i,1,1,e) = 0.0
+          endif
+
+c Compute production of omega
+
+          tau2 = tau*tau
+          G_w0 = rho*tau *gamma*(tau*g(i)-(1.+div(i)*tau)*extra_prod)
+     $          *Rfact
+          G_wp = rho     *gamma*(tau*g(i)-(1.+div(i)*tau)*extra_prod)
+     $          *Rfact
+          G_w =-G_w0 !-min(G_w0, 10.0*Y_w0)
+
+c Compute dissipation of omega
+ 
+          Y_w0=-rho * beta * Rfact
+          Y_w = Y_w0
+
+c Compute additional SST term for tau
+
+          S_w0=-2.0 * rho * sigom2 * (1.0 - Fun1) * xk       * Rfact
+          S_w =-2.0 * rho * sigom2 * (1.0 - Fun1) * xk * tau * Rfact
+c          S_w0 = 0.
+c          S_w  = 0.
+
+c          sigd       = 0.
+c          if (xk.gt.0) sigd = 1./8.
+c          S_w =-rho * sigd * xk * tau * Rfact
+
+c          Scoef = 0.0
+c          if(tau.ne.0.) Scoef = 2.*(mu+mu_t*sigom)/tau
+c          S_tau = Scoef*xt
+
+c          Scoef = 8.*(mu+mu_t*sigom)
+c          S_tau = Scoef*xtq
+
+c Compute Source term for omega
+
+          S_tau = 8.0*mul(i,1,1,e) *xtq * Rfact
+          S_tau = min(S_tau, 4.*beta/3.)
+          S_taup= 8.0*rho*k*xtq * Rfact*sigom
+
+          if(ifrans_diag) then
+            if(tau.le.tiny) then
+              omgSrc(i,1,1,e) = - Y_w - S_tau
+              omgDiag(i,1,1,e)= G_wp + S_taup - S_w0
+c              omgSrc(i,1,1,e) = S_w - Y_w - S_tau
+c              omgDiag(i,1,1,e)= G_wp + S_taup
+            else
+              omgSrc(i,1,1,e) = - Y_w
+              omgDiag(i,1,1,e)= G_wp + S_taup - S_w0 + S_tau/tau !+ Y_w/tau
+c              omgSrc(i,1,1,e) = S_w - Y_w
+c              omgDiag(i,1,1,e)= G_wp + S_taup + S_tau/tau
+            endif
+          else
+            omgSrc(i,1,1,e) = S_w - Y_w - S_tau - (G_wp + S_taup) * tau
+            omgDiag(i,1,1,e)= 0.0
+          endif
+
+          mut  (i,1,1,e)   = mu_t
+          mutsk(i,1,1,e)   = mu_t * sigk
+          mutso(i,1,1,e)   = mu_t * sigom
+
+          fdr_arr(i,1,1,e) = fd
+          rdr_arr(i,1,1,e) = rdt
+          rnsLarr(i,1,1,e) = ransL
+          xlesarr(i,1,1,e) = xlesL
+          cdesarr(i,1,1,e) = CDES
+          ddesarr(i,1,1,e) = xiddesL
+          vmutarr(i,1,1,e) = mut  (i,1,1,e)
+
+        enddo
+
+      enddo
+
+      if (ifrans_diag) then ! divided all at here
+        do e=1,nelv
+        do i=1,lxyz
+          kDiag  (i,1,1,e) = kDiag(i,1,1,e)
+c     $                     / max(t(i,1,1,e,ifld_k-1),    tiny)
+          omgDiag(i,1,1,e) = omgDiag(i,1,1,e)
+c     $                     / max(t(i,1,1,e,ifld_omega-1),tiny)
+        enddo
+        enddo
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine rans_ktauSST_IDDES_eddy
+c
+c     Compute RANS source terms and diffusivities on an 
+c     element-by-element basis
+c
+      include 'SIZE'
+      include 'TOTAL'
+      include 'RANS_KOMG'
+
+      parameter (lxyz=lx1*ly1*lz1)
+
+      real           k_x(lxyz),k_y(lxyz),k_z(lxyz)
+     $              ,t_x(lxyz),t_y(lxyz),t_z(lxyz)
+     $              ,tau_x(lxyz), tau_y(lxyz), tau_z(lxyz)
+
+      common /storesom/ St_mag2(lx1*ly1*lz1,lelv)
+     $                , Om_mag2(lx1*ly1*lz1,lelv)
+     $                , OiOjSk (lx1*ly1*lz1,lelv)
+     $                , DivQ   (lx1*ly1*lz1,lelv)
+
+      common /scr_sst / Fun1arr(lx1,ly1,lz1,lelv)
+     $                , Fun2arr(lx1,ly1,lz1,lelv)
+     $                , vmutarr(lx1,ly1,lz1,lelv)
+
+      integer e
+
+      real mu_t0
+
+c Turbulent viscosity constants
+        Pr_t         = coeffs( 1)
+        sigk1        = coeffs( 2)
+        sigom1       = coeffs( 3)
+
+c Low Reynolds number correction constants
+        alpinf_str   = coeffs( 4)
+        r_k          = coeffs( 5)
+        beta1        = coeffs( 6)
+        alp0_str     = coeffs( 7)
+
+c Dissipation of K constants
+        beta_str     = coeffs( 8)
+        gamma1       = coeffs( 9)
+        r_b          = coeffs(10)
+        akk          = coeffs(11)
+
+c Production of omega constants
+        alpha_0      = coeffs(12)
+        r_w          = coeffs(13)
+
+c Dissipation of omega constants
+c         beta_0 = defined earlier           
+
+        kv_min       = coeffs(14)
+        omeg_max     = coeffs(15)
+        tiny         = coeffs(16)
+
+c additional SST and k and epsilon constants
+        alp1         = coeffs(17)
+        beta2        = coeffs(18)
+        sigk2        = coeffs(19)
+        sigom2       = coeffs(20)
+        gamma2       = coeffs(21)
+
+
+
+c constants related to limiting source terms or mu_t
+        Hlen         = coeffs(24)
+        ywlim        = coeffs(25)
+        edd_frac_free= coeffs(26)
+        tke_frac_free= coeffs(27)
+
+c yplus boundary related to wall functions
+        yplus        = coeffs(28)
+c================================
+        vkappa= 0.4
+
+      ntot = nx1*ny1*nz1*nelv
+      call comp_StOm (St_mag2, Om_mag2, OiOjSk, DivQ)
+
+      mu_min    = edd_frac_free*param(2)
+      iflim_tau = 0 ! limit tau
+
+      if(iflim_tau.eq.0) call limit_ktau
+
+      iflim_tau =-1 ! limit tau
+      do e=1,nelv
+
+        call gradm11(k_x,  k_y,  k_z,  t(1,1,1,1,ifld_k    -1),e)
+        call gradm11(tau_x,tau_y,tau_z,t(1,1,1,1,ifld_omega-1),e)
+
+c ---------------------
+c        call check_omwall_behavior
+c ---------------------
+        do i=1,lxyz
+
+          rho = param(1) ! vtrans(i,1,1,e,1)
+          mu  = param(2) ! vdiff (i,1,1,e,1)
+          nu  = mu/rho
+
+c limits for k, tau
+
+          tau     = t(i,1,1,e,ifld_omega-1) ! Current k & tau    values
+          k       = t(i,1,1,e,ifld_k  -1)   ! from previous timestep
+
+          if(iflim_tau.eq.-1) call limit_ktau_test(k,tau
+     $                 ,t(i,1,1,e,ifld_k-1),t(i,1,1,e,ifld_omega-1))
+
+          if    (iflim_tau.eq.1) then
+
+            if(tau  .lt.0.0) then
+              write(*,*) 'TAU  tot is neg', tau
+              tau   = 0.01*abs(tau  )
+            endif
+
+            if(k.lt.0.0) then
+               write(*,*) 'K  is neg', k
+               k = 0.01*abs(k)
+            endif
+
+          endif
+
+          t_x(i)= tau_x(i)
+          t_y(i)= tau_y(i)
+          if(if3d) t_z(i)= tau_z(i)
+
+          St_magn = sqrt(St_mag2(i,e))
+          Om_magn = sqrt(Om_mag2(i,e))
+
+c calculate del k * del tau   / tau  
+
+          if(if3d)then
+            xk =-(k_x(i)*t_x(i) + k_y(i)*t_y(i) + k_z(i)*t_z(i))
+            xt = (t_x(i)*t_x(i) + t_y(i)*t_y(i) + t_z(i)*t_z(i))
+          else
+            xk =-(k_x(i)*t_x(i) + k_y(i)*t_y(i))
+            xt = (t_x(i)*t_x(i) + t_y(i)*t_y(i))
+          endif
+
+
+
+c calculate F2 based on arg2
+
+          yw     = ywd  (i,1,1,e)
+          ywm1   = 0.0
+          if(yw.gt.tiny) ywm1 = 1./yw
+          ywm2   = ywm1*ywm1
+          crit   = yw*sqrt(k)/(500.0*nu*beta_str)
+
+          arg1_1 = 500.0*beta1/6.0
+          Fun2   = 1.0
+          if(crit.gt.tiny) then
+             arg2_1 =  sqrt(k) * tau * ywm1 / beta_str
+             arg2_2 = 500.0*nu * tau * ywm2
+             arg1_1 = max (    arg2_1, arg2_2)
+             arg2   = max (2.0*arg2_1, arg2_2)
+             Fun2   = tanh(arg2 * arg2)
+          endif
+c          Fun2   = 1.0 ! XXX test !!!!
+
+c calculate F1 based on arg1
+
+          tinySST= 1.0e-10
+
+          Fun1   = 1.0
+          if(yw.gt.tiny) then
+             den1_1 = 2.0 * sigom2 * xk/(tau+tiny)
+             den1_2 = tinySST * tau**2
+             arg1_2 = 4.0 * sigom2 * k * ywm2 / max(den1_1,den1_2)
+             arg1   = min(    arg1_1, arg1_2)
+             Fun1   = tanh(arg1 * arg1 * arg1 * arg1)
+          endif
+c          Fun1   = 1.0 ! XXX test !!!!
+
+c calculate mu_t
+
+          mu_t   = rho * k * tau
+          argn   = Fun2*St_magn ! this can also be Om_magn
+          if(alp1.le.(argn*tau)) then
+             mu_t   = 0.0
+             if(argn.ne.0.) mu_t   = rho * alp1 * k/argn
+             denom  = argn/ alp1
+          else
+             denom  = 0.
+             if(tau.ne.0.) denom  = 1.0/tau
+          endif
+c          mu_t   = rho * k * tau ! XXX test !!!!
+c          if( sqrt(k)*tau.ge.Hlen) mu_t = rho * sqrt(k) * Hlen      !  limit mu_t in far field
+c          mu_t = max(mu_t, mu_min)
+
+          sigk  = Fun1 * sigk1  + (1.0 - Fun1) * sigk2
+          sigom = Fun1 * sigom1 + (1.0 - Fun1) * sigom2
+
+          mut  (i,1,1,e)   = mu_t
+          mutsk(i,1,1,e)   = mu_t * sigk
+          mutso(i,1,1,e)   = mu_t * sigom
+
+          Fun1arr(i,1,1,e) = Fun1
+          Fun2arr(i,1,1,e) = Fun2
+          vmutarr(i,1,1,e) = mut  (i,1,1,e)
+
+        enddo
+
+      enddo
 
       return
       end
