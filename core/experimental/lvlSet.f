@@ -998,7 +998,7 @@ c---------------------------------------------------------------
       integer ix,iy,iz,ie
       real deltael,phi,eps
 
-      phi = t(ix,iy,iz,ie,ifld_tlsr-1) / gfac
+      phi = t(ix,iy,iz,ie,ifld_tlsr-1) !/ gfac
 
       signls = tanh(phi/(2.0 * 0.25))
 
@@ -1367,6 +1367,10 @@ c-----------------------------------------------------------------------
      $                delta(lx1,ly1,lz1,lelv)
       real stx,sty,stz,curv,delta
 
+      real eps, epstol, psi
+      real deltael
+      integer i
+
       ntot = lx1*ly1*lz1*nelt
 
       ifcoupledls = .true.
@@ -1374,45 +1378,52 @@ c-----------------------------------------------------------------------
       if(starttime.eq.0.0) starttime = time
 
       !re-distancing TLS every n steps
-      if(time-starttime .ge. ftlsr_next .and. ftlsr.gt.0.0)then
-        ftlsr_next = ftlsr_next + ftlsr
-        call copy(t(1,1,1,1,ifld_tlsr-1),t(1,1,1,1,ifld_cls-1),ntot)
+      ! if(time-starttime .ge. ftlsr_next .and. ftlsr.gt.0.0)then
+      !   ftlsr_next = ftlsr_next + ftlsr
+      !   call copy(t(1,1,1,1,ifld_tlsr-1),t(1,1,1,1,ifld_cls-1),ntot)
 
-        call deltals(t(1,1,1,1,ifld_tlsr-1),delta)
+      !   call deltals(t(1,1,1,1,ifld_tlsr-1),delta)
 
-        call clearfarfield(t(1,1,1,1,ifld_tlsr-1),delta)
+      !   call clearfarfield(t(1,1,1,1,ifld_tlsr-1),delta)
 
-        call cadd(t(1,1,1,1,ifld_tlsr-1),-0.5,ntot)
+      !   call cadd(t(1,1,1,1,ifld_tlsr-1),-0.5,ntot)
 
-        if(icalld2.eq.0)then
-          dxmin = glmin(xm1,ntot)
-          dxmax = glmax(xm1,ntot)
-          gfac = dxmax-dxmin
-          dxmin = glmin(ym1,ntot)
-          dxmax = glmax(ym1,ntot)
-          gfac = min(gfac, dxmax-dxmin)
-          if(if3d)then
-            dxmin = glmin(zm1,ntot)
-            dxmax = glmax(zm1,ntot)
-            gfac = min(gfac, dxmax-dxmin)
-          endif
-          icalld2 = 1
-        endif
+      !   if(icalld2.eq.0)then
+      !     dxmin = glmin(xm1,ntot)
+      !     dxmax = glmax(xm1,ntot)
+      !     gfac = dxmax-dxmin
+      !     dxmin = glmin(ym1,ntot)
+      !     dxmax = glmax(ym1,ntot)
+      !     gfac = min(gfac, dxmax-dxmin)
+      !     if(if3d)then
+      !       dxmin = glmin(zm1,ntot)
+      !       dxmax = glmax(zm1,ntot)
+      !       gfac = min(gfac, dxmax-dxmin)
+      !     endif
+      !     icalld2 = 1
+      !   endif
         
-        if(nio.eq.0)write(*,*)"gfac is",gfac
-        call cmult(t(1,1,1,1,ifld_tlsr-1),0.1*gfac,ntot)
+      !   if(nio.eq.0)write(*,*)"gfac is",gfac
+      !   call cmult(t(1,1,1,1,ifld_tlsr-1),0.1*gfac,ntot)
 
-        call ls_drive(ifld_tlsr)
+      !   call ls_drive(ifld_tlsr)
 
-        call copy(t(1,1,1,1,ifld_tls-1),t(1,1,1,1,ifld_tlsr-1),ntot)
+      !   call copy(t(1,1,1,1,ifld_tls-1),t(1,1,1,1,ifld_tlsr-1),ntot)
 
-        ireset_ls = 0
-      endif
+      !   ireset_ls = 0
+      ! endif
 
       if(time-starttime .ge. fclsr_next .and. fclsr.gt.0.0)then
         fclsr_next = fclsr_next + fclsr
         call LS_CLS_driver
       endif
+
+      epstol = 1e-10
+      do i=1,ntot
+        psi = t(i,1,1,1,ifld_cls-1)
+        eps = deltael(i,1,1,1) * eps_cls
+        t(i,1,1,1,ifld_tls-1) = eps*log((psi+epstol)/(1.0-psi+epstol))
+      enddo
 
       return
       end
