@@ -398,7 +398,7 @@ C----------------------------------------------------------------------
 
       ifld1 = ifield-1
       napproxt(1,ifld1) = laxtt
-
+      if (istep.eq.1) napproxt(2,ifld1) = 0 ! reset projection
 
       if(igeom.eq.1)then
         call makeq_cls

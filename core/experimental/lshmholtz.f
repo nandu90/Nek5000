@@ -66,12 +66,12 @@ c
          ifwt  = .true.
          ifvec = .false.
 
-         call project1
+         call project1_cls
      $       (r,n,approx,napprox,h1,h2,vmk,vml,ifwt,ifvec,name6)
 
          call hmhzpf_cls (name,u,r,h1,h2,vmk,vml,imsh,tol,maxit,isd,bi)
 
-         call project2
+         call project2_cls
      $       (u,n,approx,napprox,h1,h2,vmk,vml,ifwt,ifvec,name6)
 
       endif
@@ -116,7 +116,7 @@ c-----------------------------------------------------------------------
       ntot = lx1*ly1*lz1*nelfld(ifield)
       if (imsh.eq.1) ntot = lx1*ly1*lz1*nelv
       if (imsh.eq.2) ntot = lx1*ly1*lz1*nelt
-      
+
       if(ifls_debug.eq.1 .and. nio.eq.0)then
         write(*,*)"In hmholtz_cls ",name,imsh
       endif
@@ -409,3 +409,233 @@ c
       ifsolv = .false.
       return
       end
+c-----------------------------------------------------------------------
+      subroutine project1_cls(b,n,rvar,ivar
+     $                       ,h1,h2,msk,w,ifwt,ifvec,name6)
+
+c     1. Compute the projection of x onto X
+
+c     2. Re-orthogonalize the X basis set and corresponding B=A*X
+c        vectors if A has changed.
+
+c     Output:  b = b - projection of b onto B
+
+c     Input:   n     = length of field (or multifields, when ifvec=true)
+c              rvar  = real array of field values, including old h1,h2, etc.
+c              ivar  = integer array of pointers, etc.
+c              h1    = current h1, for Axhelm(.,.,h1,h2,...)
+c              h2    = current h2
+c              msk   = mask for Dirichlet BCs
+c              w     = weight for inner products (typ. w=vmult, tmult, etc.)
+c              ifwt  = use weighted inner products when ifwt=.true.
+c              ifvec = are x and b vectors, or scalar fields?
+c              name6 = discriminator for action of A*x
+
+c     The idea here is to have one pair of projection routines for
+c     constructing the new rhs (project1) and reconstructing the new
+c     solution (x = xbar + dx) plus updating the approximation space.
+c     The latter functions are done in project2.
+c
+c     The approximation space X and corresponding right-hand sides,
+c     B := A*X are stored in rvar, as well as h1old and h2old and a
+c     couple of other auxiliary arrays.
+
+c     In this new code, we retain both X and B=A*X and we re-orthogonalize
+c     at each timestep (with no extra matrix-vector products, but O(nm)
+c     work.   The idea is to retain fresh vectors by injecting the most
+c     recent solution and pushing the oldest off the stack, hopefully
+c     keeping the number of vectors, m, small.
+
+
+      include 'SIZE'   ! For nid/nio
+      include 'TSTEP'  ! For istep
+      include 'CTIMER'
+
+      real b(n),rvar(n,1),h1(n),h2(n),w(n),msk(n)
+      integer ivar(1)
+      character*6 name6
+      logical ifwt,ifvec
+
+      etime0 = dnekclock()
+
+      nn = n
+      if (ifvec) nn = n*ldim
+
+      call proj_get_ivar
+     $   (m,mmx,ixb,ibb,ix,ib,ih1,ih2,ivar,n,ifvec,name6)
+
+      if (m.le.0) return
+
+      ireset=iproj_chk_ls(rvar(ih1,1),rvar(ih2,1),h1,h2,n) ! Updated matrix?
+
+      bb4 = glsc3(b,w,b,n)
+      bb4 = sqrt(bb4)
+
+
+c     Re-orthogonalize basis set w.r.t. new vectors if space has changed.
+
+      if (ireset.eq.1) then
+
+         do j=0,m-1         ! First, set B := A*X
+            jb = ib+j*nn    !Iterate through xs and bs
+            jx = ix+j*nn
+            call proj_matvec_cls(rvar(jb,1),rvar(jx,1),n
+     $                          ,h1,h2,msk,name6)
+         enddo
+
+         if (nio.eq.0 .and. loglevel.gt.2)
+     $      write(6,'(13x,A)') 'Reorthogonalize Basis'
+
+         call proj_ortho_full
+     $      (rvar(ix,1),rvar(ib,1),n,m,w,ifwt,ifvec,name6)
+
+         ivar(2) = m ! Update number of saved vectors
+
+      endif
+
+c     ixb is pointer to xbar,  ibb is pointer to bbar := A*xbar
+
+      call project1_a(rvar(ixb,1),rvar(ibb,1),b,rvar(ix,1),rvar(ib,1)
+     $               ,n,m,w,ifwt,ifvec)
+
+      baf = glsc3(b,w,b,n)
+      baf = sqrt(baf)
+      ratio = bb4/baf
+
+      tproj = tproj + dnekclock() - etime0
+
+      if (nio.eq.0) write(6,1) istep,'  Project ' // name6,
+     &                         baf,bb4,ratio,m,mmx
+    1 format(i11,a,6x,1p3e13.4,i4,i4)
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine project2_cls(x,n,rvar,ivar
+     $                       ,h1,h2,msk,w,ifwt,ifvec,name6)
+
+      include 'CTIMER'
+
+      real x(n),b(n),rvar(n,1),h1(n),h2(n),w(n),msk(n)
+      integer ivar(1)
+      character*6 name6
+      logical ifwt,ifvec
+
+      etime0 = dnekclock()
+
+      call proj_get_ivar(m,mmx,ixb,ibb,ix,ib,ih1,ih2,
+     $                             ivar,n,ifvec,name6)
+
+c     ix  is pointer to X,     ib  is pointer to B
+c     ixb is pointer to xbar,  ibb is pointer to bbar := A*xbar
+
+      call project2_a_cls(x,rvar(ixb,1),rvar(ix,1),rvar(ib,1)
+     $              ,n,m,mmx,h1,h2,msk,w,ifwt,ifvec,name6)
+
+      ivar(2) = m ! Update number of saved vectors
+
+      tproj = tproj + dnekclock() - etime0
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine project2_a_cls(x,xbar,xx,bb,n,m,mmx
+     $                         ,h1,h2,msk,w,ifwt,ifvec,name6)
+
+      include 'SIZE'
+
+      real x(n),xbar(n),xx(n,1),bb(n,1),h1(n),h2(n),w(n),msk(n)
+      character*6 name6
+      logical ifwt,ifvec
+
+      nn = n
+      if (ifvec) nn=ldim*n
+
+      if (m.gt.0) call add2(x,xbar,n)      ! Restore desired solution
+
+       !Uncomment this if using full reorthogonalization
+c      if (m.eq.mmx) then ! Push old vector off the stack
+c         do k=2,mmx
+c            call copy (xx(1,k-1),xx(1,k),nn)
+c            call copy (bb(1,k-1),bb(1,k),nn)
+c         enddo
+c      endif
+
+      m = min(m+1,mmx)
+      !print *, "m", m
+      call copy        (xx(1,m),x,nn)   ! Update (X,B)
+      call proj_matvec_cls(bb(1,m),xx(1,m),n,h1,h2,msk,name6)
+      call proj_ortho  (xx,bb,n,m,w,ifwt,ifvec,name6) !Update orthogonalization
+      !Uncomment the if block above if using full reorthogonalization
+c      call proj_ortho_full  (xx,bb,n,m,w,ifwt,ifvec,name6) !Fully reorthogonalize
+
+      return
+      end
+c-----------------------------------------------------------------------
+      function iproj_chk_ls(h1old,h2old,h1,h2,n)
+      include 'SIZE'
+      include 'TOTAL'
+c     Matrix has changed if h1/h2 differ from old values
+
+      real h1(n),h2(n),h1old(n),h2old(n)
+      integer istep_save
+      save istep_save
+      data istep_save /0/
+
+      iproj_chk_ls = 0
+
+      if (ifmvbd) then
+         iproj_chk_ls = 1
+         return
+      endif
+
+      if (istep.lt.istep_save) then
+         iproj_chk_ls = 1
+         return
+      endif
+      istep_save = istep
+
+      dh1 = 0.
+      dh2 = 0.
+      do i=1,n
+         dh1 = max(dh1,abs(h1(i)-h1old(i)))
+         dh2 = max(dh2,abs(h2(i)-h2old(i)))
+      enddo
+      dh = max(dh1,dh2)
+      dh = glmax(dh,1)  ! Max across all processors
+
+      if (dh.gt.0) then
+
+         call copy(h1old,h1,n)   ! Save old h1 / h2 values
+         call copy(h2old,h2,n)
+
+         iproj_chk_ls = 1      ! Force re-orthogonalization of basis
+
+      endif
+
+      return
+      end
+c-----------------------------------------------------------------------
+      subroutine proj_matvec_cls(b,x,n,h1,h2,msk,name6)
+      include 'SIZE'
+      include 'TOTAL'
+      real b(n),x(n),h1(n),h2(n),msk(n)
+      character*6 name6
+
+c     This is the default matvec for nekcem.
+
+c     The code can later be updated to support different matvec
+c     implementations, which would be discriminated by the character
+c     string "name6"
+
+      isd  = 1    ! This probably won't work for axisymmetric
+      imsh = 1
+      if (iftmsh(ifield)) imsh=2
+
+      call axhelm_cls  (b,x,h1,h2,imsh,isd)       ! b = A x
+      call dssum   (b,lx1,ly1,lz1)
+      call col2    (b,msk,n)
+
+      return
+      end
+c-----------------------------------------------------------------------
