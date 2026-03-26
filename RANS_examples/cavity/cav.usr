@@ -56,11 +56,10 @@ c     Thus, ffx will subsequently be multiplied by rho(x,t).
 c
       integer ix,iy,iz,e,eg
 
+      common /param_buo/ Ri
       real Ri
 
       e = gllel(eg)
-
-      Ri = 1.0
       
       ffx = 0.0
       ffy = t(ix,iy,iz,e,1)*Ri
@@ -85,17 +84,20 @@ c-----------------------------------------------------------------------
      $      buo_omgsrc, buo_omgdiag
 
       integer ie,ix,iy,iz,ieg
+      common /param_buo/ Ri
+      real Ri
+
       ie = gllel(ieg)
 
       if (ifield.eq.2) then
         qvol = 0.0 
         avol = 0.0
       elseif (ifield.eq.ifld_k) then
-        qvol = rans_kSrc  (ix,iy,iz,ie) + buo_ksrc(ix,iy,iz,ie)
-        avol = rans_kDiag (ix,iy,iz,ie) + buo_kdiag(ix,iy,iz,ie)
+        qvol = rans_kSrc  (ix,iy,iz,ie) + buo_ksrc(ix,iy,iz,ie) * Ri
+        avol = rans_kDiag (ix,iy,iz,ie) + buo_kdiag(ix,iy,iz,ie) * Ri
       elseif (ifield.eq.ifld_omega) then
-        qvol = rans_omgSrc (ix,iy,iz,ie) + buo_omgsrc(ix,iy,iz,ie)
-        avol = rans_omgDiag(ix,iy,iz,ie) + buo_omgdiag(ix,iy,iz,ie)
+        qvol = rans_omgSrc (ix,iy,iz,ie) + buo_omgsrc(ix,iy,iz,ie)*Ri
+        avol = rans_omgDiag(ix,iy,iz,ie) + buo_omgdiag(ix,iy,iz,ie)*Ri
       endif
 
       return
@@ -253,11 +255,13 @@ c-----------------------------------------------------------------------
       parameter(BETAM=2.2)
       
       integer ntot
+      common /param_buo/ Ri
+      real Ri
 
       real sgnx,sgny,xx,yy,xmin,ymin,glmin
 
       real Th,Tc,deltaT,Lref,Tref,g,beta,V0,nu,rho
-      real Prandtl,Gr,Re,Ri,Ra
+      real Prandtl,Gr,Re,Ra
 
       ntot = lx1*ly1*lz1*nelt
 
@@ -328,6 +332,7 @@ c      buo_id = 2   !GGDH
       gvec(1) = 0.0
       gvec(2) = -1.0
       gvec(3) = 0.0
+      Ri = 1.0       !Richardson number scaling for buoyancy production term
       call rans_buo_init(buo_id,gvec)
 
 c      param(59)=1
