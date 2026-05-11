@@ -758,7 +758,7 @@ c--------------------------------------------------------------
         rho = vtrans(i,1,1,ie,1)
         k = t(i,1,1,ie,ifld_k-1)
         mu_t0 = 0.0
-        if(k.ne.0.)mu_t0 = mu_t/k
+        if(k.gt.1e-12)mu_t0 = mu_t/k
         
         gtx = tx_buo(i,1,1,ie)
         gty = ty_buo(i,1,1,ie)
@@ -844,8 +844,8 @@ c--------------------------------------------------------------
 
       integer ir1_3d(6),ir2_3d(6)
       save ir1_3d,ir2_3d
-      data ir1_3d /1,1,2,2,3,3/
-      data ir2_3d /1,2,2,3,3,1/
+      data ir1_3d /1,2,3,1,2,1/
+      data ir2_3d /1,2,3,2,3,3/
 
       integer q_3d(3,3)
       save q_3d
@@ -926,7 +926,7 @@ c--------------------------------------------------------------
         rho = vtrans(i,1,1,ie,1)
         k = t(i,1,1,ie,ifld_k-1)
         mu_t0 = 0.0
-        if(k.ne.0.)mu_t0 = mu_t/k
+        if(k.gt.1e-12)mu_t0 = mu_t/k
 
         if(if3d)then
           s_ij(i,1) = (2./3.)*rho - mu_t0*sij(i,ie,1)
