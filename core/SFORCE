@@ -1,0 +1,40 @@
+c
+c     Pressure gradient correction (surface-tension force) storage.
+c
+c     Port of nekRS's "FLUID PRESSURE RHO SPLITTING GRAD CORRECTION"
+c     (see src/solver/fluid/fluidSolver.cpp and the lvlSet plugin's
+c     applyPressureGradCorrection()). Used together with the existing
+c     rho-splitting variable-density pressure solve in plan4.f
+c     (PR, PREXT, VTRANS0) to reduce spurious currents caused by
+c     extrapolating the singular (surface-tension) part of the
+c     pressure gradient near a sharp two-phase interface.
+c
+c     STX,STY,STZ    : current (non-extrapolated) pressure-gradient
+c                       correction force, e.g. the CSF surface tension
+c                       force density -kappa*delta*n/We. Filled by the
+c                       case (see experimental/lvlSet.f:surfacetension).
+c     STXLAG,...      : two-level lagged history of STX,STY,STZ, used
+c                       to build the extrapolated STXE,STYE,STZE with
+c                       the same AB/EXT order as PREXT (see
+c                       experimental/lvlSet.f:sforce_extrap_lag, which
+c                       reuses extrappr).
+c     STXE,STYE,STZE  : extrapolated pressure-gradient correction
+c                       force ("Pgce" in nekRS).
+c
+      logical ifpgc
+      common /sforce_l/ ifpgc
+
+      real stx    (lx1,ly1,lz1,lelv)
+     $    ,sty    (lx1,ly1,lz1,lelv)
+     $    ,stz    (lx1,ly1,lz1,lelv)
+     $    ,curv   (lx1,ly1,lz1,lelv)
+     $    ,delta  (lx1,ly1,lz1,lelv)
+     $    ,stxlag (lx1,ly1,lz1,lelv,2)
+     $    ,stylag (lx1,ly1,lz1,lelv,2)
+     $    ,stzlag (lx1,ly1,lz1,lelv,2)
+     $    ,stxe   (lx1,ly1,lz1,lelv)
+     $    ,stye   (lx1,ly1,lz1,lelv)
+     $    ,stze   (lx1,ly1,lz1,lelv)
+
+      common /sforce/ stx,sty,stz,curv,delta,
+     $                stxlag,stylag,stzlag,stxe,stye,stze

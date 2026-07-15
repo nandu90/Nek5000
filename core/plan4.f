@@ -112,6 +112,7 @@ C     Compute startresidual/right-hand-side in the pressure
 
       INCLUDE 'SIZE'
       INCLUDE 'TOTAL'
+      INCLUDE 'SFORCE'
 
       REAL           RESPR (LX1*LY1*LZ1,LELV)
 c
@@ -130,6 +131,14 @@ c
       common /scrvz/         ur(lr),us(lr),ut(lr)
      $                     , vr(lr),vs(lr),vt(lr)
      $                     , wr(lr),ws(lr),wt(lr)
+
+c     scratch for the pressure-gradient correction (SFORCE) terms
+      common /scrsforce/     g1(lx1*ly1*lz1,lelv)
+     $                     , g2(lx1*ly1*lz1,lelv)
+     $                     , g3(lx1*ly1*lz1,lelv)
+     $                     , wg1(lx1*ly1*lz1,lelv)
+     $                     , wg2(lx1*ly1*lz1,lelv)
+     $                     , wg3(lx1*ly1*lz1,lelv)
 
       CHARACTER CB*3
       
@@ -203,13 +212,44 @@ c add (1/rho-1/rho0) \del (prext-pr) term for var_dens
       call axhelm  (ta3,w1,ta1,ta2,imesh,1)
       call sub2    (respr,ta3  ,ntot1)
 
-c     add explicit (NONLINEAR) terms 
+      if (ifpgc) then
+         call col3    (g1,stxe,ta1,ntot1)
+         call col3    (g2,stye,ta1,ntot1)
+         if (if3d) call col3(g3,stze,ta1,ntot1)
+
+         call cdtp    (wg1,g1,rxm1,sxm1,txm1,1)
+         call cdtp    (wg2,g2,rym1,sym1,tym1,1)
+         if (if3d) then
+            call cdtp (wg3,g3,rzm1,szm1,tzm1,1)
+            call add2 (wg1,wg2,ntot1)
+            call add2 (wg1,wg3,ntot1)
+         else
+            call add2 (wg1,wg2,ntot1)
+         endif
+         call sub2    (respr,wg1,ntot1)
+      endif
+
+c     add explicit (NONLINEAR) terms
       n = lx1*ly1*lz1*nelv
       do i=1,n
          ta1(i,1) = bfx(i,1,1,1)/vtrans(i,1,1,1,1)-wa1(i)
          ta2(i,1) = bfy(i,1,1,1)/vtrans(i,1,1,1,1)-wa2(i)
          ta3(i,1) = bfz(i,1,1,1)/vtrans(i,1,1,1,1)-wa3(i)
       enddo
+
+      if (ifpgc) then
+c        bfx already carries an implicit bm1 (mass-matrix) weighting
+c        (bfx = rho*ffx*bm1), so bfx/vtrans above is bm1-weighted;
+c        stx/rho0 must be scaled by bm1 too before being folded into
+c        the same buffer, else it is far too large once dssum+binvm1
+c        (below) treat it as an already-mass-weighted quantity.
+         call invers2 (w2,vtrans0,ntot1)
+         call col2    (w2,bm1,ntot1)
+         call addcol3 (ta1,stx,w2,ntot1)
+         call addcol3 (ta2,sty,w2,ntot1)
+         if (if3d) call addcol3(ta3,stz,w2,ntot1)
+      endif
+
       call opdssum (ta1,ta2,ta3)
       do i=1,n
          ta1(i,1) = ta1(i,1)*binvm1(i,1,1,1)
@@ -288,6 +328,7 @@ C     Compute the residual for the velocity
 
       INCLUDE 'SIZE'
       INCLUDE 'TOTAL'
+      INCLUDE 'SFORCE'
 
       real resv1(lx1,ly1,lz1,lelv)
      $   , resv2(lx1,ly1,lz1,lelv)
@@ -299,6 +340,11 @@ C     Compute the residual for the velocity
      $ ,             TA2   (LX1,LY1,LZ1,LELV)
      $ ,             TA3   (LX1,LY1,LZ1,LELV)
      $ ,             TA4   (LX1,LY1,LZ1,LELV)
+
+c     scratch for the pressure-gradient correction (SFORCE) terms
+      common /scrsforce2/ g1(lx1,ly1,lz1,lelv)
+     $                , g2(lx1,ly1,lz1,lelv)
+     $                , g3(lx1,ly1,lz1,lelv)
 
       NTOT = lx1*ly1*lz1*NELV
       INTYPE = -1
@@ -314,6 +360,14 @@ C     Compute the residual for the velocity
       call col3    (ta4,vdiff,qtl,ntot)
       call add2s1  (ta4,prext,scale,ntot) ! use prext instead of pr for var_dens
       call opgrad  (ta1,ta2,ta3,TA4)
+
+      if (ifpgc) then
+         call col3   (g1,stxe,bm1,ntot)
+         call col3   (g2,stye,bm1,ntot)
+         if (if3d) call col3(g3,stze,bm1,ntot)
+         call opsub2 (ta1,ta2,ta3,g1,g2,g3)
+      endif
+
       if(IFAXIS) then
          CALL COL2 (TA2, OMASK,NTOT)
          CALL COL2 (TA3, OMASK,NTOT)
@@ -325,6 +379,17 @@ c
 c add -(\rho/\rho0)(\del pr^{n+1} - \del prext)
       call sub3    (ta4,pr,prext,ntot)
       call opgrad  (ta1,ta2,ta3,TA4)
+
+      if (ifpgc) then
+         call sub3   (g1,stx,stxe,ntot)
+         call sub3   (g2,sty,stye,ntot)
+         if (if3d) call sub3(g3,stz,stze,ntot)
+         call col2   (g1,bm1,ntot)
+         call col2   (g2,bm1,ntot)
+         if (if3d) call col2(g3,bm1,ntot)
+         call opsub2 (ta1,ta2,ta3,g1,g2,g3)
+      endif
+
       call invcol3 (ta4,vtrans,vtrans0,ntot)
       call opcolv  (ta1,ta2,ta3,ta4)
       call opsub2  (resv1,resv2,resv3,ta1,ta2,ta3)

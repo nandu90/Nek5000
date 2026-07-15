@@ -1223,16 +1223,10 @@ c-----------------------------------------------------------------------
       include 'SIZE'
       include 'TOTAL'
       include 'LVLSET'
+      include 'SFORCE'
 
       integer ix,iy,iz,e
       real sfx,sfy,sfz
-      common /sforce/ stx(lx1,ly1,lz1,lelv),
-     $                sty(lx1,ly1,lz1,lelv), 
-     $                stz(lx1,ly1,lz1,lelv), 
-     $                curv(lx1,ly1,lz1,lelv),
-     $                delta(lx1,ly1,lz1,lelv)
-
-      real stx,sty,stz,curv,delta
       real gamm
 
       integer ntot,i
@@ -1791,6 +1785,48 @@ C
       endif
 
   3   format(A,1p4e17.9,I4)
+
+      return
+      end
+c---------------------------------------------------------------------
+      subroutine sforce_extrap_lag(iord_ext)
+      implicit none
+
+      INCLUDE 'SIZE'
+      INCLUDE 'TOTAL'
+      INCLUDE 'SFORCE'
+
+      integer iord_ext
+      integer ntot1
+
+      ntot1 = lx1*ly1*lz1*nelv
+
+      call extrappr(stxe,stx,stxlag(1,1,1,1,1),stxlag(1,1,1,1,2),
+     $              iord_ext)
+      call extrappr(stye,sty,stylag(1,1,1,1,1),stylag(1,1,1,1,2),
+     $              iord_ext)
+      if (if3d) call extrappr(stze,stz,
+     $              stzlag(1,1,1,1,1),stzlag(1,1,1,1,2),iord_ext)
+
+      call copy(stxlag(1,1,1,1,2),stxlag(1,1,1,1,1),ntot1)
+      call copy(stxlag(1,1,1,1,1),stx,ntot1)
+      call copy(stylag(1,1,1,1,2),stylag(1,1,1,1,1),ntot1)
+      call copy(stylag(1,1,1,1,1),sty,ntot1)
+      if (if3d) then
+         call copy(stzlag(1,1,1,1,2),stzlag(1,1,1,1,1),ntot1)
+         call copy(stzlag(1,1,1,1,1),stz,ntot1)
+      endif
+
+      return
+      end
+c---------------------------------------------------------------------
+      subroutine sforce_step(iord_ext)
+      INCLUDE 'SIZE'
+      INCLUDE 'SFORCE'
+
+      integer iord_ext
+
+      if (ifpgc) call sforce_extrap_lag(iord_ext)
 
       return
       end

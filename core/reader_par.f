@@ -41,6 +41,7 @@ C
       INCLUDE 'RESTART'
       INCLUDE 'PARALLEL'
       INCLUDE 'CTIMER'
+      INCLUDE 'SFORCE'
 
       loglevel = 2
       optlevel = 1
@@ -192,6 +193,7 @@ C
       ifsync    = .false.  
       ifcoupledls = .false.
       ireset_ls = 0
+      ifpgc     = .false.
       ifanls    = .false.  
       ifcoup    = .false.  
       ifvcoup   = .false.  
